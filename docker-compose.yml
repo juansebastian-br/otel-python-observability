@@ -1,0 +1,81 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: observability
+      POSTGRES_USER: otel
+      POSTGRES_PASSWORD: otel
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U otel -d observability"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  orders-service:
+    build: ./services/orders
+    environment:
+      OTEL_SERVICE_NAME: orders-service
+      SERVICE_VERSION: 1.0.0
+      DEPLOYMENT_ENVIRONMENT: local
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+      DATABASE_URL: postgresql+psycopg://otel:otel@postgres:5432/observability
+      PAYMENTS_URL: http://payments-service:8001
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+
+  payments-service:
+    build: ./services/payments
+    environment:
+      OTEL_SERVICE_NAME: payments-service
+      SERVICE_VERSION: 1.0.0
+      DEPLOYMENT_ENVIRONMENT: local
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+      DATABASE_URL: postgresql+psycopg://otel:otel@postgres:5432/observability
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.161.0
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./otel-collector/otel-collector-local.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "8889:8889"
+      - "13133:13133"
+
+  jaeger:
+    image: jaegertracing/jaeger:2.21.0
+    ports:
+      - "16686:16686"
+      - "4317"
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+
+  prometheus:
+    image: prom/prometheus:v3.7.2
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - otel-collector
+
+volumes:
+  postgres-data:
