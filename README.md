@@ -113,22 +113,91 @@ Interfaces:
 - Payments: http://localhost:8001
 - Jaeger: http://localhost:16686
 - Prometheus: http://localhost:9090
+- Grafana: http://localhost:3000 (dashboard "OTel Python Observability · SLIs")
 - Collector health: http://localhost:13133
+
+Generar carga (300 órdenes, 5 en paralelo):
+
+```bash
+scripts/load.sh
+```
+
+`payments-service` falla a propósito un 2% de los pagos (`PAYMENTS_FAILURE_RATE`) para que los paneles de error tengan datos. Para el benchmark use `PAYMENTS_FAILURE_RATE=0 docker compose up -d`.
+
+## Despliegue en GCP (GKE Autopilot)
+
+Requisitos: `gcloud` autenticado (`gcloud auth login`), `kubectl`, Docker con `buildx` y un proyecto GCP con facturación.
+
+```bash
+PROJECT_ID=<proyecto> REGION=us-central1 scripts/deploy-gke.sh   # build, push, cluster, IAM, manifiestos
+scripts/port-forward-gke.sh                                       # UIs en localhost (dejar abierto)
+scripts/load.sh                                                   # en otra terminal
+PROJECT_ID=<proyecto> scripts/destroy-gke.sh                      # al terminar, para no seguir pagando
+```
+
+Contraseña de Grafana (usuario `admin`):
+
+```bash
+kubectl -n observability get secret grafana-credentials -o jsonpath='{.data.password}' | base64 -d; echo
+```
+
+| Recurso | Archivo | Notas |
+|---|---|---|
+| orders / payments | `k8s/orders.yaml`, `k8s/payments.yaml` | imágenes en Artifact Registry `otel-lab` |
+| PostgreSQL | `k8s/postgres.yaml` | `emptyDir`, credenciales en Secret `postgres-credentials` |
+| OTel Collector | `k8s/otel-collector.yaml` + `otel-collector/otel-collector-gke.yaml` | logs → Cloud Logging vía Workload Identity (`roles/logging.logWriter`) |
+| Jaeger v2 | `k8s/jaeger.yaml` | almacenamiento en memoria |
+| Prometheus | `k8s/prometheus.yaml` + `prometheus/prometheus.yml` | scrapea `:8889` (apps) y `:8888` (Collector) |
+| Grafana | `k8s/grafana.yaml` + `grafana/` | datasources y dashboard provisionados |
+
+En GKE los logs quedan en Cloud Logging → Logs Explorer con `logName="projects/<proyecto>/logs/otel-python-observability"`.
+
+## Fase 3 — Backends y visualización
+
+### Trazas y propagación de contexto
+
+HTTPX inyecta el header W3C `traceparent` y FastAPI lo extrae en `payments-service`, de modo que una orden produce **una sola traza** que cruza ambos servicios. En Jaeger (servicio `orders-service`, operación `POST /orders`):
+
+```text
+- [orders-service]   POST /orders
+  - [orders-service]   order.create
+    - [orders-service]   INSERT observability
+    - [orders-service]   POST                      (cliente HTTPX)
+      - [payments-service] POST /payments
+        - [payments-service] payment.authorize
+          - [payments-service] INSERT observability
+    - [orders-service]   UPDATE observability
+```
+
+El `trace_id` de la traza es el mismo que aparece en los logs JSON de ambos servicios (`docker compose logs payments-service | grep <trace_id>`).
+
+### Dashboard Grafana (6 paneles)
+
+Definido en `grafana/dashboards/otel-slis.json`. Las métricas HTTP usan la semántica estable (`OTEL_SEMCONV_STABILITY_OPT_IN=http`).
+
+| # | Panel | Métrica base |
+|---|---|---|
+| 1 | SLI Tráfico (req/s) | `http_server_request_duration_seconds_count` |
+| 2 | SLI Tasa de errores 5xx (%) | `..._count{http_response_status_code=~"5.."}` / total |
+| 3 | SLI Latencia p50/p95/p99 | `http_server_request_duration_seconds_bucket` |
+| 4 | SLI Disponibilidad (%) | `1 - 5xx/total` en el rango del dashboard (SLO 99.5%) |
+| 5 | CPU | `process_cpu_time_seconds_total` (servicios) y `otelcol_process_cpu_seconds` (Collector) |
+| 6 | Errores del OTel Collector | `otelcol_exporter_send_failed_*`, `otelcol_receiver_refused_*`, `otelcol_receiver_failed_*`, `otelcol_exporter_queue_size` |
+
+Para demostrar el panel 6, detenga Jaeger mientras genera carga (`docker compose stop jaeger` o `kubectl -n observability scale deploy/jaeger --replicas=0`). `otelcol_exporter_queue_size` sube de inmediato. `send_failed` solo aumenta cuando se agotan los reintentos (~5 min).
 
 ## Consultar métricas
 
-Prometheus scrapea el endpoint:
+Prometheus scrapea `otel-collector:8889/metrics` (telemetría de las apps) y `otel-collector:8888/metrics` (telemetría interna del Collector).
 
-```text
-http://otel-collector:8889/metrics
-```
+Métricas de negocio:
 
-Ejemplos:
+- `orders_created_total`
+- `orders_create_duration_milliseconds_bucket`
+- `payments_authorized_total`
+- `payments_authorize_duration_milliseconds_bucket`
 
-- `orders_created`
-- `orders_create_duration`
-- `payments_authorized`
-- `payments_authorize_duration`
+Métricas de proceso (para el análisis de overhead): `process_cpu_time_seconds_total`, `process_cpu_utilization_ratio`, `process_memory_usage_bytes`.
 
 ## Overhead
 

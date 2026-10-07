@@ -1,0 +1,71 @@
+# The KSA is bound to roles/logging.logWriter through Workload Identity
+# (see scripts/deploy-gke.sh), so the googlecloud exporter needs no keys.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: otel-collector
+  namespace: observability
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: observability
+  labels: { app: otel-collector }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: otel-collector }
+  template:
+    metadata:
+      labels: { app: otel-collector }
+    spec:
+      serviceAccountName: otel-collector
+      enableServiceLinks: false
+      containers:
+        - name: otel-collector
+          image: otel/opentelemetry-collector-contrib:0.161.0
+          args: ["--config=/etc/otelcol-contrib/config.yaml"]
+          env:
+            - name: GCP_PROJECT_ID
+              value: ${PROJECT_ID}
+            - name: GOMEMLIMIT
+              value: 400MiB
+          ports:
+            - { name: otlp-grpc, containerPort: 4317 }
+            - { name: otlp-http, containerPort: 4318 }
+            - { name: metrics, containerPort: 8889 }
+            - { name: telemetry, containerPort: 8888 }
+            - { name: health, containerPort: 13133 }
+          readinessProbe:
+            httpGet: { path: /, port: 13133 }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /, port: 13133 }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { memory: 512Mi }
+          volumeMounts:
+            - name: config
+              mountPath: /etc/otelcol-contrib
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: otel-collector-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: observability
+spec:
+  selector: { app: otel-collector }
+  ports:
+    - { name: otlp-grpc, port: 4317, targetPort: 4317, appProtocol: grpc }
+    - { name: otlp-http, port: 4318, targetPort: 4318 }
+    - { name: metrics, port: 8889, targetPort: 8889 }
+    - { name: telemetry, port: 8888, targetPort: 8888 }
+    - { name: health, port: 13133, targetPort: 13133 }

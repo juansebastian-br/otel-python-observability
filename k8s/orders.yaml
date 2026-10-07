@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orders-service
+  namespace: observability
+  labels: { app: orders-service }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: orders-service }
+  template:
+    metadata:
+      labels: { app: orders-service }
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: orders-service
+          image: ${REGION}-docker.pkg.dev/${PROJECT_ID}/otel-lab/orders-service:${IMAGE_TAG}
+          ports:
+            - containerPort: 8000
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: orders-service
+            - name: SERVICE_VERSION
+              value: ${IMAGE_TAG}
+            - name: DEPLOYMENT_ENVIRONMENT
+              value: gke
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: otel-collector:4317
+            - name: OTEL_SEMCONV_STABILITY_OPT_IN
+              value: http
+            - name: OTEL_PYTHON_FASTAPI_EXCLUDED_URLS
+              value: health
+            - name: PAYMENTS_URL
+              value: http://payments-service:8001
+            - name: DB_USER
+              valueFrom: { secretKeyRef: { name: postgres-credentials, key: username } }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: postgres-credentials, key: password } }
+            - name: DATABASE_URL
+              value: postgresql+psycopg://$(DB_USER):$(DB_PASSWORD)@postgres:5432/observability
+          readinessProbe:
+            httpGet: { path: /health, port: 8000 }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 250m, memory: 256Mi }
+            limits: { memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orders-service
+  namespace: observability
+spec:
+  selector: { app: orders-service }
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000

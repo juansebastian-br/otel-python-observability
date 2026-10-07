@@ -10,3 +10,4 @@ opentelemetry-exporter-otlp-proto-grpc==1.45.0
 opentelemetry-instrumentation-fastapi==0.66b0
 opentelemetry-instrumentation-httpx==0.66b0
 opentelemetry-instrumentation-sqlalchemy==0.66b0
+opentelemetry-instrumentation-system-metrics==0.66b0

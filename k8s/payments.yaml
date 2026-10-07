@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-service
+  namespace: observability
+  labels: { app: payments-service }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: payments-service }
+  template:
+    metadata:
+      labels: { app: payments-service }
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: payments-service
+          image: ${REGION}-docker.pkg.dev/${PROJECT_ID}/otel-lab/payments-service:${IMAGE_TAG}
+          ports:
+            - containerPort: 8001
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: payments-service
+            - name: SERVICE_VERSION
+              value: ${IMAGE_TAG}
+            - name: DEPLOYMENT_ENVIRONMENT
+              value: gke
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: otel-collector:4317
+            - name: OTEL_SEMCONV_STABILITY_OPT_IN
+              value: http
+            - name: OTEL_PYTHON_FASTAPI_EXCLUDED_URLS
+              value: health
+            # Simulated failures so the error SLIs have data. Set to "0" for the benchmark.
+            - name: PAYMENTS_FAILURE_RATE
+              value: "0.02"
+            - name: DB_USER
+              valueFrom: { secretKeyRef: { name: postgres-credentials, key: username } }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: postgres-credentials, key: password } }
+            - name: DATABASE_URL
+              value: postgresql+psycopg://$(DB_USER):$(DB_PASSWORD)@postgres:5432/observability
+          readinessProbe:
+            httpGet: { path: /health, port: 8001 }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 8001 }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 250m, memory: 256Mi }
+            limits: { memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payments-service
+  namespace: observability
+spec:
+  selector: { app: payments-service }
+  ports:
+    - name: http
+      port: 8001
+      targetPort: 8001

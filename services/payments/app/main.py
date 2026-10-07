@@ -1,4 +1,5 @@
 import os
+import random
 import time
 from datetime import datetime, timezone
 
@@ -12,6 +13,9 @@ DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql+psycopg://otel:otel@postgres:5432/observability",
 )
+
+# Fraction of payments that fail on purpose (0.0-1.0) to exercise error SLIs.
+FAILURE_RATE = float(os.getenv("PAYMENTS_FAILURE_RATE", "0"))
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 app = FastAPI(title="Payments Service", version="1.0.0")
@@ -51,6 +55,9 @@ def authorize_payment(request: PaymentRequest):
         try:
             # Simulates a small amount of business processing.
             time.sleep(0.020)
+
+            if random.random() < FAILURE_RATE:
+                raise RuntimeError("payment gateway unavailable (simulated)")
 
             with engine.begin() as conn:
                 conn.execute(

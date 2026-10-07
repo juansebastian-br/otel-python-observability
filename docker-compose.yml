@@ -25,6 +25,8 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
       DATABASE_URL: postgresql+psycopg://otel:otel@postgres:5432/observability
       PAYMENTS_URL: http://payments-service:8001
+      OTEL_SEMCONV_STABILITY_OPT_IN: http
+      OTEL_PYTHON_FASTAPI_EXCLUDED_URLS: health
     ports:
       - "8000:8000"
     depends_on:
@@ -41,6 +43,9 @@ services:
       DEPLOYMENT_ENVIRONMENT: local
       OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
       DATABASE_URL: postgresql+psycopg://otel:otel@postgres:5432/observability
+      OTEL_SEMCONV_STABILITY_OPT_IN: http
+      OTEL_PYTHON_FASTAPI_EXCLUDED_URLS: health
+      PAYMENTS_FAILURE_RATE: ${PAYMENTS_FAILURE_RATE:-0.02}
     ports:
       - "8001:8001"
     depends_on:
@@ -58,6 +63,7 @@ services:
       - "4317:4317"
       - "4318:4318"
       - "8889:8889"
+      - "8888:8888"
       - "13133:13133"
 
   jaeger:
@@ -76,6 +82,21 @@ services:
       - "9090:9090"
     depends_on:
       - otel-collector
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - jaeger
 
 volumes:
   postgres-data:
