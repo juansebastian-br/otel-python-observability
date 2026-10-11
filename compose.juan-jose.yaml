@@ -1,0 +1,43 @@
+services:
+  postgres:
+    ports: !override ["127.0.0.1:15432:5432"]
+  orders-service:
+    environment:
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
+      OTEL_TRACES_SAMPLER: always_on
+      OTEL_PROPAGATORS: tracecontext,baggage
+    ports: !override ["127.0.0.1:18000:8000"]
+    cpus: 2.0
+    mem_limit: 512m
+  payments-service:
+    environment:
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
+      OTEL_TRACES_SAMPLER: always_on
+      OTEL_PROPAGATORS: tracecontext,baggage
+      PAYMENTS_FAILURE_RATE: "0"
+    ports: !override ["127.0.0.1:18001:8001"]
+    cpus: 2.0
+    mem_limit: 512m
+  otel-collector:
+    ports: !override ["127.0.0.1:14317:4317", "127.0.0.1:14318:4318", "127.0.0.1:18889:8889", "127.0.0.1:18888:8888", "127.0.0.1:13134:13133"]
+    volumes: !override
+      - ./otel-collector/otel-collector-juan-jose.yaml:/etc/otelcol-contrib/config.yaml:ro
+  jaeger:
+    ports: !override ["127.0.0.1:16687:16686"]
+  prometheus:
+    ports: !override ["127.0.0.1:19090:9090"]
+  grafana:
+    ports: !override ["127.0.0.1:13000:3000"]
+    volumes: !override
+      - ./grafana/juan-jose:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+  loki:
+    image: grafana/loki:3.5.5
+    command: ["-config.file=/etc/loki/config.yaml"]
+    ports: ["127.0.0.1:13100:3100"]
+    volumes:
+      - ./loki/loki.yaml:/etc/loki/config.yaml:ro
+      - loki-data:/loki
+volumes:
+  loki-data:

@@ -1,0 +1,2 @@
+# Preserve exported evidence bytes so SHA256SUMS remains valid after cloning.
+docs/evidencias/** -text whitespace=cr-at-eol

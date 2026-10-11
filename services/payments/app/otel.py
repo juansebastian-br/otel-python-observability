@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import socket
+import time
 
 from opentelemetry import metrics, trace
 from opentelemetry._logs import get_logger_provider, set_logger_provider
@@ -32,7 +33,51 @@ resource = Resource.create({
     "service.instance.id": socket.gethostname(),
 })
 
+class JsonFormatter(logging.Formatter):
+    converter = time.gmtime
+    def format(self, record):
+        span = trace.get_current_span()
+        ctx = span.get_span_context()
+        trace_id = format(ctx.trace_id, "032x") if ctx.is_valid else None
+        span_id = format(ctx.span_id, "016x") if ctx.is_valid else None
+        payload = {
+            "timestamp": self.formatTime(record, "%Y-%m-%dT%H:%M:%SZ"),
+            "level": record.levelname,
+            "service": SERVICE_NAME,
+            "message": record.getMessage(),
+            "trace_id": trace_id,
+            "span_id": span_id,
+        }
+        for key in ("event", "order_id"):
+            value = getattr(record, key, None)
+            if value is not None:
+                payload[key] = value
+        if record.exc_info:
+            payload["exception"] = self.formatException(record.exc_info)
+        return json.dumps(payload, ensure_ascii=False)
+
+
+def configure_json_logging():
+    stdout = logging.StreamHandler()
+    stdout.setFormatter(JsonFormatter())
+
+    root = logging.getLogger()
+    root.handlers.clear()
+    root.setLevel(logging.INFO)
+    root.addHandler(stdout)
+
+
+
 def configure_otel(app, engine):
+    # Keep the same JSON business logs in both arms of the experiment.
+    # The disabled arm does not create SDK providers, exporters or instrumentors.
+    disabled = os.getenv("OTEL_SDK_DISABLED", "false").lower() == "true"
+    configure_json_logging()
+    if disabled:
+        return (trace.NoOpTracerProvider().get_tracer(SERVICE_NAME),
+                metrics.NoOpMeterProvider().get_meter(SERVICE_NAME),
+                logging.getLogger(SERVICE_NAME))
+
     # Traces
     tracer_provider = TracerProvider(resource=resource)
     tracer_provider.add_span_processor(
@@ -73,36 +118,9 @@ def configure_otel(app, engine):
         logger_provider=logger_provider,
     )
 
-    class JsonFormatter(logging.Formatter):
-        def format(self, record):
-            span = trace.get_current_span()
-            ctx = span.get_span_context()
-            trace_id = format(ctx.trace_id, "032x") if ctx.is_valid else None
-            span_id = format(ctx.span_id, "016x") if ctx.is_valid else None
-            payload = {
-                "timestamp": self.formatTime(record, "%Y-%m-%dT%H:%M:%S"),
-                "level": record.levelname,
-                "service": SERVICE_NAME,
-                "message": record.getMessage(),
-                "trace_id": trace_id,
-                "span_id": span_id,
-            }
-            for key in ("event", "order_id"):
-                value = getattr(record, key, None)
-                if value is not None:
-                    payload[key] = value
-            if record.exc_info:
-                payload["exception"] = self.formatException(record.exc_info)
-            return json.dumps(payload, ensure_ascii=False)
-
-    stdout = logging.StreamHandler()
-    stdout.setFormatter(JsonFormatter())
-
-    root = logging.getLogger()
-    root.handlers.clear()
-    root.setLevel(logging.INFO)
-    root.addHandler(stdout)
-    root.addHandler(otel_handler)
+    # Persist the same JSON body in OTLP and stdout; OTLP also carries native IDs.
+    otel_handler.setFormatter(JsonFormatter())
+    logging.getLogger().addHandler(otel_handler)
 
     # Auto-instrumentation for HTTP and DB.
     FastAPIInstrumentor.instrument_app(app, tracer_provider=tracer_provider)

@@ -1,0 +1,10 @@
+{
+  "trace_id": "d1a1502f734f3700992585ea3fdb7f03",
+  "parent_id": "6bce0637ff6fe5b4",
+  "order_id": "46d220ae-4e65-4d1a-a68f-b1113c578f72",
+  "logql": "{service_name=~\"orders-service|payments-service\"} | trace_id=\"d1a1502f734f3700992585ea3fdb7f03\"",
+  "spans": 17,
+  "matched_logs": 3,
+  "status": "PASS",
+  "jaeger_url": "http://localhost:16687/trace/d1a1502f734f3700992585ea3fdb7f03"
+}

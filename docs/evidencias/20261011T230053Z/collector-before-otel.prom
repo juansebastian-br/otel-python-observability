@@ -1,0 +1,132 @@
+# HELP otelcol_exporter_in_flight_requests Number of export requests currently in-flight (including retry backoff). [Development]
+# TYPE otelcol_exporter_in_flight_requests gauge
+otelcol_exporter_in_flight_requests{data_type="logs",exporter="otlphttp/loki"} 0
+otelcol_exporter_in_flight_requests{data_type="metrics",exporter="prometheus"} 0
+otelcol_exporter_in_flight_requests{data_type="traces",exporter="otlp/jaeger"} 0
+# HELP otelcol_exporter_queue_capacity Fixed capacity of the retry queue (in batches). [Alpha]
+# TYPE otelcol_exporter_queue_capacity gauge
+otelcol_exporter_queue_capacity{data_type="logs",exporter="otlphttp/loki"} 1000
+otelcol_exporter_queue_capacity{data_type="traces",exporter="otlp/jaeger"} 1000
+# HELP otelcol_exporter_queue_size Current size of the retry queue (in batches). [Alpha]
+# TYPE otelcol_exporter_queue_size gauge
+otelcol_exporter_queue_size{data_type="logs",exporter="otlphttp/loki"} 0
+otelcol_exporter_queue_size{data_type="traces",exporter="otlp/jaeger"} 0
+# HELP otelcol_exporter_sent_log_records Number of log record successfully sent to destination. [Alpha]
+# TYPE otelcol_exporter_sent_log_records counter
+otelcol_exporter_sent_log_records{exporter="otlphttp/loki",server_address="loki",server_port="3100",url_path="/otlp/v1/logs"} 4
+# HELP otelcol_exporter_sent_metric_points Number of metric points successfully sent to destination. [Alpha]
+# TYPE otelcol_exporter_sent_metric_points counter
+otelcol_exporter_sent_metric_points{exporter="prometheus"} 64
+# HELP otelcol_exporter_sent_spans Number of spans successfully sent to destination. [Alpha]
+# TYPE otelcol_exporter_sent_spans counter
+otelcol_exporter_sent_spans{exporter="otlp/jaeger",server_address="jaeger",server_port="4317"} 17
+# HELP otelcol_process_cpu_seconds Total CPU user and system time in seconds [Alpha]
+# TYPE otelcol_process_cpu_seconds counter
+otelcol_process_cpu_seconds 0.53
+# HELP otelcol_process_memory_rss Total physical memory (resident set size) [Alpha]
+# TYPE otelcol_process_memory_rss gauge
+otelcol_process_memory_rss 2.2654976e+08
+# HELP otelcol_process_runtime_heap_alloc_bytes Bytes of allocated heap objects (see 'go doc runtime.MemStats.HeapAlloc') [Alpha]
+# TYPE otelcol_process_runtime_heap_alloc_bytes gauge
+otelcol_process_runtime_heap_alloc_bytes 2.8893912e+07
+# HELP otelcol_process_runtime_total_alloc_bytes Cumulative bytes allocated for heap objects (see 'go doc runtime.MemStats.TotalAlloc') [Alpha]
+# TYPE otelcol_process_runtime_total_alloc_bytes counter
+otelcol_process_runtime_total_alloc_bytes 7.2058608e+07
+# HELP otelcol_process_runtime_total_sys_memory_bytes Total bytes of memory obtained from the OS (see 'go doc runtime.MemStats.Sys') [Alpha]
+# TYPE otelcol_process_runtime_total_sys_memory_bytes gauge
+otelcol_process_runtime_total_sys_memory_bytes 6.0033304e+07
+# HELP otelcol_process_uptime Uptime of the process [Alpha]
+# TYPE otelcol_process_uptime counter
+otelcol_process_uptime 399.530863666
+# HELP otelcol_processor_batch_batch_send_size Number of units in the batch [Development]
+# TYPE otelcol_processor_batch_batch_send_size histogram
+otelcol_processor_batch_batch_send_size_bucket{processor="batch",le="10"} 3
+otelcol_processor_batch_batch_send_size_bucket{processor="batch",le="25"} 4
+otelcol_processor_batch_batch_send_size_bucket{processor="batch",le="50"} 6
+otelcol_processor_batch_batch_send_size_bucket{processor="batch",le="75"} 6
+otelcol_processor_batch_batch_send_size_bucket{processor="batch",le="100"} 6
+otelcol_processor_batch_batch_send_size_bucket{processor="batch",le="250"} 6
+otelcol_processor_batch_batch_send_size_bucket{processor="batch",le="500"} 6
+otelcol_processor_batch_batch_send_size_bucket{processor="batch",le="750"} 6
+otelcol_processor_batch_batch_send_size_bucket{processor="batch",le="1000"} 6
+otelcol_processor_batch_batch_send_size_bucket{processor="batch",le="2000"} 6
+otelcol_processor_batch_batch_send_size_bucket{processor="batch",le="3000"} 6
+otelcol_processor_batch_batch_send_size_bucket{processor="batch",le="4000"} 6
+otelcol_processor_batch_batch_send_size_bucket{processor="batch",le="5000"} 6
+otelcol_processor_batch_batch_send_size_bucket{processor="batch",le="6000"} 6
+otelcol_processor_batch_batch_send_size_bucket{processor="batch",le="7000"} 6
+otelcol_processor_batch_batch_send_size_bucket{processor="batch",le="8000"} 6
+otelcol_processor_batch_batch_send_size_bucket{processor="batch",le="9000"} 6
+otelcol_processor_batch_batch_send_size_bucket{processor="batch",le="10000"} 6
+otelcol_processor_batch_batch_send_size_bucket{processor="batch",le="20000"} 6
+otelcol_processor_batch_batch_send_size_bucket{processor="batch",le="30000"} 6
+otelcol_processor_batch_batch_send_size_bucket{processor="batch",le="50000"} 6
+otelcol_processor_batch_batch_send_size_bucket{processor="batch",le="100000"} 6
+otelcol_processor_batch_batch_send_size_bucket{processor="batch",le="+Inf"} 6
+otelcol_processor_batch_batch_send_size_sum{processor="batch"} 85
+otelcol_processor_batch_batch_send_size_count{processor="batch"} 6
+# HELP otelcol_processor_batch_metadata_cardinality Number of distinct metadata value combinations being processed [Development]
+# TYPE otelcol_processor_batch_metadata_cardinality gauge
+otelcol_processor_batch_metadata_cardinality{processor="batch"} 3
+# HELP otelcol_processor_batch_timeout_trigger_send Number of times the batch was sent due to a timeout trigger [Development]
+# TYPE otelcol_processor_batch_timeout_trigger_send counter
+otelcol_processor_batch_timeout_trigger_send{processor="batch"} 6
+# HELP otelcol_processor_incoming_items Number of items passed to the processor. [Alpha]
+# TYPE otelcol_processor_incoming_items counter
+otelcol_processor_incoming_items{otel_signal="logs",processor="memory_limiter"} 4
+otelcol_processor_incoming_items{otel_signal="logs",processor="resource"} 4
+otelcol_processor_incoming_items{otel_signal="metrics",processor="memory_limiter"} 64
+otelcol_processor_incoming_items{otel_signal="metrics",processor="resource"} 64
+otelcol_processor_incoming_items{otel_signal="traces",processor="memory_limiter"} 17
+otelcol_processor_incoming_items{otel_signal="traces",processor="resource"} 17
+# HELP otelcol_processor_memory_limiter_accepted_log_records Number of log records successfully pushed into the next component in the pipeline. [Alpha]
+# TYPE otelcol_processor_memory_limiter_accepted_log_records counter
+otelcol_processor_memory_limiter_accepted_log_records{processor="memory_limiter"} 4
+# HELP otelcol_processor_memory_limiter_accepted_metric_points Number of metric points successfully pushed into the next component in the pipeline. [Alpha]
+# TYPE otelcol_processor_memory_limiter_accepted_metric_points counter
+otelcol_processor_memory_limiter_accepted_metric_points{processor="memory_limiter"} 64
+# HELP otelcol_processor_memory_limiter_accepted_spans Number of spans successfully pushed into the next component in the pipeline. [Alpha]
+# TYPE otelcol_processor_memory_limiter_accepted_spans counter
+otelcol_processor_memory_limiter_accepted_spans{processor="memory_limiter"} 17
+# HELP otelcol_processor_outgoing_items Number of items emitted from the processor. [Alpha]
+# TYPE otelcol_processor_outgoing_items counter
+otelcol_processor_outgoing_items{otel_signal="logs",processor="memory_limiter"} 4
+otelcol_processor_outgoing_items{otel_signal="logs",processor="resource"} 4
+otelcol_processor_outgoing_items{otel_signal="metrics",processor="memory_limiter"} 64
+otelcol_processor_outgoing_items{otel_signal="metrics",processor="resource"} 64
+otelcol_processor_outgoing_items{otel_signal="traces",processor="memory_limiter"} 17
+otelcol_processor_outgoing_items{otel_signal="traces",processor="resource"} 17
+# HELP otelcol_receiver_accepted_log_records Number of log records successfully pushed into the pipeline. [Alpha]
+# TYPE otelcol_receiver_accepted_log_records counter
+otelcol_receiver_accepted_log_records{receiver="otlp",transport="grpc"} 4
+# HELP otelcol_receiver_accepted_metric_points Number of metric points successfully pushed into the pipeline. [Alpha]
+# TYPE otelcol_receiver_accepted_metric_points counter
+otelcol_receiver_accepted_metric_points{receiver="otlp",transport="grpc"} 64
+# HELP otelcol_receiver_accepted_spans Number of spans successfully pushed into the pipeline. [Alpha]
+# TYPE otelcol_receiver_accepted_spans counter
+otelcol_receiver_accepted_spans{receiver="otlp",transport="grpc"} 17
+# HELP otelcol_receiver_failed_log_records The number of log records that failed to be processed by the receiver due to internal errors. [Alpha]
+# TYPE otelcol_receiver_failed_log_records counter
+otelcol_receiver_failed_log_records{receiver="otlp",transport="grpc"} 0
+# HELP otelcol_receiver_failed_metric_points The number of metric points that failed to be processed by the receiver due to internal errors. [Alpha]
+# TYPE otelcol_receiver_failed_metric_points counter
+otelcol_receiver_failed_metric_points{receiver="otlp",transport="grpc"} 0
+# HELP otelcol_receiver_failed_spans The number of spans that failed to be processed by the receiver due to internal errors. [Alpha]
+# TYPE otelcol_receiver_failed_spans counter
+otelcol_receiver_failed_spans{receiver="otlp",transport="grpc"} 0
+# HELP otelcol_receiver_refused_log_records Number of log records that could not be pushed into the pipeline. [Alpha]
+# TYPE otelcol_receiver_refused_log_records counter
+otelcol_receiver_refused_log_records{receiver="otlp",transport="grpc"} 0
+# HELP otelcol_receiver_refused_metric_points Number of metric points that could not be pushed into the pipeline. [Alpha]
+# TYPE otelcol_receiver_refused_metric_points counter
+otelcol_receiver_refused_metric_points{receiver="otlp",transport="grpc"} 0
+# HELP otelcol_receiver_refused_spans Number of spans that could not be pushed into the pipeline. [Alpha]
+# TYPE otelcol_receiver_refused_spans counter
+otelcol_receiver_refused_spans{receiver="otlp",transport="grpc"} 0
+# HELP promhttp_metric_handler_errors_total Total number of internal errors encountered by the promhttp metric handler.
+# TYPE promhttp_metric_handler_errors_total counter
+promhttp_metric_handler_errors_total{cause="encoding"} 0
+promhttp_metric_handler_errors_total{cause="gathering"} 0
+# HELP target_info Target metadata
+# TYPE target_info gauge
+target_info{service_instance_id="38d7e044-5754-48ee-a5e8-bf83e675a532",service_name="otelcol-contrib",service_version="0.161.0"} 1

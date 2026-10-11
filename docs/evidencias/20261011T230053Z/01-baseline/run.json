@@ -1,0 +1,8 @@
+{
+  "mode": "baseline",
+  "started_utc": "2026-10-11T23:03:09.736916+00:00",
+  "ended_utc": "2026-10-11T23:08:12.679227+00:00",
+  "k6_exit_code": 0,
+  "sampling_errors": [],
+  "resource_sampling_includes_graceful_stop": true
+}

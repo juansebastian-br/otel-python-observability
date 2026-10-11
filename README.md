@@ -1,5 +1,13 @@
 # Python OpenTelemetry Observability Lab
 
+## Aporte de Juan José: correlación y overhead
+
+- [Guía de ejecución y resultados](README-JUAN-JOSE.md): logs en Loki/Grafana, enlaces por `trace_id` a Jaeger y benchmark k6 baseline frente a OTel.
+- Informe integrado: [PDF](docs/Informe_Juan_Jose.pdf) y [Word editable](docs/Informe_Juan_Jose.docx); aporte en las páginas 10–15.
+- [Evidencias reales y tabla comparativa](docs/evidencias/20261011T230053Z/comparacion.md): 50 usuarios durante cinco minutos por escenario, ejecutados localmente en Docker Desktop.
+
+La correlación se verificó mediante las APIs. Las capturas nuevas de las interfaces siguen pendientes; estas mediciones no corresponden a GKE ni ECS.
+
 ## Objetivo
 
 Implementación de dos microservicios Python instrumentados con OpenTelemetry:

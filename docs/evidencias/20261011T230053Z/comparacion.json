@@ -1,0 +1,74 @@
+{
+  "aggregate": {
+    "baseline": {
+      "p99_ms": 164.65488699999685,
+      "cpu_percent_mean": 44.45509090909091,
+      "memory_mib_mean": 323.14181818181817,
+      "memory_mib_peak": 357.98,
+      "rps": 47.65994557956215,
+      "error_rate": 0,
+      "stack_cpu_percent_mean": 50.67618181818182,
+      "stack_memory_mib_mean": 653.6338181818181
+    },
+    "otel": {
+      "p99_ms": 255.30696000000052,
+      "cpu_percent_mean": 61.861636363636364,
+      "memory_mib_mean": 223.36309090909091,
+      "memory_mib_peak": 271.1,
+      "rps": 47.31174762746229,
+      "error_rate": 0,
+      "stack_cpu_percent_mean": 70.28381818181818,
+      "stack_memory_mib_mean": 876.6296363636363
+    }
+  },
+  "delta": {
+    "p99_additional_ms": 90.65207300000367,
+    "p99_overhead_percent": 55.05580469045259,
+    "cpu_overhead_percent": 39.15534778714371,
+    "cpu_percentage_points": 17.40654545454545,
+    "memory_additional_mib": -99.77872727272725,
+    "stack_memory_additional_mib": 222.9958181818182
+  },
+  "runs": [
+    {
+      "run": "01-baseline",
+      "mode": "baseline",
+      "p99_ms": 164.65488699999685,
+      "p95_ms": 70.68072999999998,
+      "rps": 47.65994557956215,
+      "requests": 14364,
+      "error_rate": 0,
+      "checks_rate": 1,
+      "cpu_percent_mean": 44.45509090909091,
+      "memory_mib_mean": 323.14181818181817,
+      "memory_mib_peak": 357.98,
+      "samples": 55,
+      "collector_cpu_percent_mean": 0.09236363636363636,
+      "collector_memory_mib_mean": 55.132,
+      "stack_cpu_percent_mean": 50.67618181818182,
+      "stack_memory_mib_mean": 653.6338181818181,
+      "valid": true
+    },
+    {
+      "run": "01-otel",
+      "mode": "otel",
+      "p99_ms": 255.30696000000052,
+      "p95_ms": 87.45025999999997,
+      "rps": 47.31174762746229,
+      "requests": 14265,
+      "error_rate": 0,
+      "checks_rate": 1,
+      "cpu_percent_mean": 61.861636363636364,
+      "memory_mib_mean": 223.36309090909091,
+      "memory_mib_peak": 271.1,
+      "samples": 55,
+      "collector_cpu_percent_mean": 0.9758181818181818,
+      "collector_memory_mib_mean": 105.39654545454546,
+      "stack_cpu_percent_mean": 70.28381818181818,
+      "stack_memory_mib_mean": 876.6296363636363,
+      "valid": true
+    }
+  ],
+  "valid": true,
+  "scope": "local Docker Desktop; application metrics: orders+payments; stack metrics: all eight containers; median of per-run measurements"
+}

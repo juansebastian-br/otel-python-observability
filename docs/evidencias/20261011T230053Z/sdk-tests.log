@@ -1,0 +1,12 @@
+{"timestamp": "2026-10-11T23:15:26Z", "level": "INFO", "service": "orders-service", "message": "probe", "trace_id": null, "span_id": null, "event": "probe", "order_id": "test"}
+{"timestamp": "2026-10-11T23:15:26Z", "level": "INFO", "service": "orders-service", "message": "HTTP Request: GET http://testserver/probe \"HTTP/1.1 200 OK\"", "trace_id": null, "span_id": null}
+PASS orders disabled=True
+{"timestamp": "2026-10-11T23:15:27Z", "level": "INFO", "service": "orders-service", "message": "probe", "trace_id": "1234567890abcdef1234567890abcdef", "span_id": "523a50e1ea731ecc", "event": "probe", "order_id": "test"}
+{"timestamp": "2026-10-11T23:15:27Z", "level": "INFO", "service": "orders-service", "message": "HTTP Request: GET http://testserver/probe \"HTTP/1.1 200 OK\"", "trace_id": null, "span_id": null}
+PASS orders disabled=False
+{"timestamp": "2026-10-11T23:15:28Z", "level": "INFO", "service": "payments-service", "message": "probe", "trace_id": null, "span_id": null, "event": "probe", "order_id": "test"}
+{"timestamp": "2026-10-11T23:15:28Z", "level": "INFO", "service": "payments-service", "message": "HTTP Request: GET http://testserver/probe \"HTTP/1.1 200 OK\"", "trace_id": null, "span_id": null}
+PASS payments disabled=True
+{"timestamp": "2026-10-11T23:15:29Z", "level": "INFO", "service": "payments-service", "message": "probe", "trace_id": "1234567890abcdef1234567890abcdef", "span_id": "6825afa4e95c0855", "event": "probe", "order_id": "test"}
+{"timestamp": "2026-10-11T23:15:29Z", "level": "INFO", "service": "payments-service", "message": "HTTP Request: GET http://testserver/probe \"HTTP/1.1 200 OK\"", "trace_id": null, "span_id": null}
+PASS payments disabled=False

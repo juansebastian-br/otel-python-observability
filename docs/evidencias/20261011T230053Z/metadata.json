@@ -1,0 +1,20 @@
+{
+  "environment": "local Docker Desktop",
+  "utc_started": "20261011T230053Z",
+  "host": "Windows-11-10.0.26200-SP0",
+  "logical_cpus_host": 16,
+  "vus": 50,
+  "duration_seconds": 300,
+  "warmup_seconds": 30,
+  "repetitions": 1,
+  "sampling": "always_on",
+  "payments_failure_rate": 0,
+  "order": [
+    "01-baseline",
+    "01-otel"
+  ],
+  "git_base": "e1d234c591a456b8ef2ece8a8a96aa60c5984fd1",
+  "git_diff": " services/orders/app/otel.py   | 78 ++++++++++++++++++++++++++-----------------\n services/payments/app/otel.py | 78 ++++++++++++++++++++++++++-----------------\n 2 files changed, 96 insertions(+), 60 deletions(-)\n",
+  "docker": "{\"Client\":{\"Version\":\"27.4.0\",\"ApiVersion\":\"1.47\",\"DefaultAPIVersion\":\"1.47\",\"GitCommit\":\"bde2b89\",\"GoVersion\":\"go1.22.10\",\"Os\":\"windows\",\"Arch\":\"amd64\",\"BuildTime\":\"Sat Dec  7 10:40:21 2024\",\"Context\":\"desktop-linux\"},\"Server\":{\"Platform\":{\"Name\":\"Docker Desktop 4.37.1 (178610)\"},\"Components\":[{\"Name\":\"Engine\",\"Version\":\"27.4.0\",\"Details\":{\"ApiVersion\":\"1.47\",\"Arch\":\"amd64\",\"BuildTime\":\"Sat Dec  7 10:38:57 2024\",\"Experimental\":\"false\",\"GitCommit\":\"92a8393\",\"GoVersion\":\"go1.22.10\",\"KernelVersion\":\"5.15.167.4-microsoft-standard-WSL2\",\"MinAPIVersion\":\"1.24\",\"Os\":\"linux\"}},{\"Name\":\"containerd\",\"Version\":\"1.7.21\",\"Details\":{\"GitCommit\":\"472731909fa34bd7bc9c087e4c27943f9835f111\"}},{\"Name\":\"runc\",\"Version\":\"1.1.13\",\"Details\":{\"GitCommit\":\"v1.1.13-0-g58aa920\"}},{\"Name\":\"docker-init\",\"Version\":\"0.19.0\",\"Details\":{\"GitCommit\":\"de40ad0\"}}],\"Version\":\"27.4.0\",\"ApiVersion\":\"1.47\",\"MinAPIVersion\":\"1.24\",\"GitCommit\":\"92a8393\",\"GoVersion\":\"go1.22.10\",\"Os\":\"linux\",\"Arch\":\"amd64\",\"KernelVersion\":\"5.15.167.4-microsoft-standard-WSL2\",\"BuildTime\":\"2024-12-07T10:38:57.000000000+00:00\"}}\n",
+  "k6": "k6.exe v2.2.0 (commit/00a9a1b7f5, go1.26.5, windows/amd64)\n"
+}

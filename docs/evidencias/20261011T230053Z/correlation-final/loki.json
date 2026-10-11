@@ -1,0 +1,278 @@
+{
+  "status": "success",
+  "data": {
+    "resultType": "streams",
+    "result": [
+      {
+        "stream": {
+          "code_file_path": "/app/app/main.py",
+          "code_function_name": "authorize_payment",
+          "code_line_number": "83",
+          "deployment_environment_name": "local",
+          "detected_level": "INFO",
+          "event": "payment.authorized",
+          "flags": "1",
+          "observed_timestamp": "1791760473823065256",
+          "order_id": "9cfa4a3c-d453-4b6e-a271-675d5d9151ea",
+          "scope_name": "payments-service",
+          "service_instance_id": "7ddad3db95d4",
+          "service_name": "payments-service",
+          "service_version": "1.0.0",
+          "severity_number": "9",
+          "severity_text": "INFO",
+          "span_id": "a22e81202e0cf533",
+          "telemetry_sdk_language": "python",
+          "telemetry_sdk_name": "opentelemetry",
+          "telemetry_sdk_version": "1.45.0",
+          "trace_id": "837fc6fd7e6e313ae1cbc71a2987cb5a"
+        },
+        "values": [
+          [
+            "1791760473822771200",
+            "{\"timestamp\": \"2026-10-11T23:14:33Z\", \"level\": \"INFO\", \"service\": \"payments-service\", \"message\": \"payment authorized\", \"trace_id\": \"837fc6fd7e6e313ae1cbc71a2987cb5a\", \"span_id\": \"a22e81202e0cf533\", \"event\": \"payment.authorized\", \"order_id\": \"9cfa4a3c-d453-4b6e-a271-675d5d9151ea\"}"
+          ]
+        ]
+      },
+      {
+        "stream": {
+          "code_file_path": "/app/app/main.py",
+          "code_function_name": "create_order",
+          "code_line_number": "102",
+          "deployment_environment_name": "local",
+          "detected_level": "INFO",
+          "event": "order.completed",
+          "flags": "1",
+          "observed_timestamp": "1791760473830222656",
+          "order_id": "9cfa4a3c-d453-4b6e-a271-675d5d9151ea",
+          "scope_name": "orders-service",
+          "service_instance_id": "ef8661e7d371",
+          "service_name": "orders-service",
+          "service_version": "1.0.0",
+          "severity_number": "9",
+          "severity_text": "INFO",
+          "span_id": "399a7678ee689958",
+          "telemetry_sdk_language": "python",
+          "telemetry_sdk_name": "opentelemetry",
+          "telemetry_sdk_version": "1.45.0",
+          "trace_id": "837fc6fd7e6e313ae1cbc71a2987cb5a"
+        },
+        "values": [
+          [
+            "1791760473830094080",
+            "{\"timestamp\": \"2026-10-11T23:14:33Z\", \"level\": \"INFO\", \"service\": \"orders-service\", \"message\": \"order completed\", \"trace_id\": \"837fc6fd7e6e313ae1cbc71a2987cb5a\", \"span_id\": \"399a7678ee689958\", \"event\": \"order.completed\", \"order_id\": \"9cfa4a3c-d453-4b6e-a271-675d5d9151ea\"}"
+          ]
+        ]
+      },
+      {
+        "stream": {
+          "code_file_path": "/app/app/main.py",
+          "code_function_name": "create_order",
+          "code_line_number": "75",
+          "deployment_environment_name": "local",
+          "detected_level": "INFO",
+          "event": "order.persisted",
+          "flags": "1",
+          "observed_timestamp": "1791760473739283401",
+          "order_id": "9cfa4a3c-d453-4b6e-a271-675d5d9151ea",
+          "scope_name": "orders-service",
+          "service_instance_id": "ef8661e7d371",
+          "service_name": "orders-service",
+          "service_version": "1.0.0",
+          "severity_number": "9",
+          "severity_text": "INFO",
+          "span_id": "399a7678ee689958",
+          "telemetry_sdk_language": "python",
+          "telemetry_sdk_name": "opentelemetry",
+          "telemetry_sdk_version": "1.45.0",
+          "trace_id": "837fc6fd7e6e313ae1cbc71a2987cb5a"
+        },
+        "values": [
+          [
+            "1791760473739036672",
+            "{\"timestamp\": \"2026-10-11T23:14:33Z\", \"level\": \"INFO\", \"service\": \"orders-service\", \"message\": \"order persisted\", \"trace_id\": \"837fc6fd7e6e313ae1cbc71a2987cb5a\", \"span_id\": \"399a7678ee689958\", \"event\": \"order.persisted\", \"order_id\": \"9cfa4a3c-d453-4b6e-a271-675d5d9151ea\"}"
+          ]
+        ]
+      },
+      {
+        "stream": {
+          "code_file_path": "/usr/local/lib/python3.13/site-packages/httpx/_client.py",
+          "code_function_name": "_send_single_request",
+          "code_line_number": "1025",
+          "deployment_environment_name": "local",
+          "detected_level": "INFO",
+          "flags": "1",
+          "observed_timestamp": "1791760473824932569",
+          "scope_name": "httpx",
+          "service_instance_id": "ef8661e7d371",
+          "service_name": "orders-service",
+          "service_version": "1.0.0",
+          "severity_number": "9",
+          "severity_text": "INFO",
+          "span_id": "399a7678ee689958",
+          "telemetry_sdk_language": "python",
+          "telemetry_sdk_name": "opentelemetry",
+          "telemetry_sdk_version": "1.45.0",
+          "trace_id": "837fc6fd7e6e313ae1cbc71a2987cb5a"
+        },
+        "values": [
+          [
+            "1791760473824807936",
+            "{\"timestamp\": \"2026-10-11T23:14:33Z\", \"level\": \"INFO\", \"service\": \"orders-service\", \"message\": \"HTTP Request: POST http://payments-service:8001/payments \\\"HTTP/1.1 200 OK\\\"\", \"trace_id\": \"837fc6fd7e6e313ae1cbc71a2987cb5a\", \"span_id\": \"399a7678ee689958\"}"
+          ]
+        ]
+      }
+    ],
+    "stats": {
+      "summary": {
+        "bytesProcessedPerSecond": 524118,
+        "linesProcessedPerSecond": 1280,
+        "totalBytesProcessed": 1637,
+        "totalLinesProcessed": 4,
+        "execTime": 0.003123,
+        "queueTime": 0.00011,
+        "subqueries": 0,
+        "totalEntriesReturned": 4,
+        "splits": 0,
+        "shards": 1,
+        "totalPostFilterLines": 4,
+        "totalStructuredMetadataBytesProcessed": 560
+      },
+      "querier": {
+        "store": {
+          "totalChunksRef": 0,
+          "totalChunksDownloaded": 0,
+          "chunksDownloadTime": 0,
+          "queryReferencedStructuredMetadata": false,
+          "chunk": {
+            "headChunkBytes": 0,
+            "headChunkLines": 0,
+            "decompressedBytes": 0,
+            "decompressedLines": 0,
+            "compressedBytes": 0,
+            "totalDuplicates": 0,
+            "postFilterLines": 0,
+            "headChunkStructuredMetadataBytes": 0,
+            "decompressedStructuredMetadataBytes": 0
+          },
+          "chunkRefsFetchTime": 0,
+          "congestionControlLatency": 0,
+          "pipelineWrapperFilteredLines": 0
+        }
+      },
+      "ingester": {
+        "totalReached": 1,
+        "totalChunksMatched": 2,
+        "totalBatches": 2,
+        "totalLinesSent": 4,
+        "store": {
+          "totalChunksRef": 0,
+          "totalChunksDownloaded": 0,
+          "chunksDownloadTime": 0,
+          "queryReferencedStructuredMetadata": true,
+          "chunk": {
+            "headChunkBytes": 1637,
+            "headChunkLines": 4,
+            "decompressedBytes": 0,
+            "decompressedLines": 0,
+            "compressedBytes": 0,
+            "totalDuplicates": 0,
+            "postFilterLines": 4,
+            "headChunkStructuredMetadataBytes": 560,
+            "decompressedStructuredMetadataBytes": 0
+          },
+          "chunkRefsFetchTime": 76966,
+          "congestionControlLatency": 0,
+          "pipelineWrapperFilteredLines": 0
+        }
+      },
+      "cache": {
+        "chunk": {
+          "entriesFound": 0,
+          "entriesRequested": 0,
+          "entriesStored": 0,
+          "bytesReceived": 0,
+          "bytesSent": 0,
+          "requests": 0,
+          "downloadTime": 0,
+          "queryLengthServed": 0
+        },
+        "index": {
+          "entriesFound": 0,
+          "entriesRequested": 0,
+          "entriesStored": 0,
+          "bytesReceived": 0,
+          "bytesSent": 0,
+          "requests": 0,
+          "downloadTime": 0,
+          "queryLengthServed": 0
+        },
+        "result": {
+          "entriesFound": 0,
+          "entriesRequested": 0,
+          "entriesStored": 0,
+          "bytesReceived": 0,
+          "bytesSent": 0,
+          "requests": 0,
+          "downloadTime": 0,
+          "queryLengthServed": 0
+        },
+        "statsResult": {
+          "entriesFound": 0,
+          "entriesRequested": 0,
+          "entriesStored": 0,
+          "bytesReceived": 0,
+          "bytesSent": 0,
+          "requests": 0,
+          "downloadTime": 0,
+          "queryLengthServed": 0
+        },
+        "volumeResult": {
+          "entriesFound": 0,
+          "entriesRequested": 0,
+          "entriesStored": 0,
+          "bytesReceived": 0,
+          "bytesSent": 0,
+          "requests": 0,
+          "downloadTime": 0,
+          "queryLengthServed": 0
+        },
+        "seriesResult": {
+          "entriesFound": 0,
+          "entriesRequested": 0,
+          "entriesStored": 0,
+          "bytesReceived": 0,
+          "bytesSent": 0,
+          "requests": 0,
+          "downloadTime": 0,
+          "queryLengthServed": 0
+        },
+        "labelResult": {
+          "entriesFound": 0,
+          "entriesRequested": 0,
+          "entriesStored": 0,
+          "bytesReceived": 0,
+          "bytesSent": 0,
+          "requests": 0,
+          "downloadTime": 0,
+          "queryLengthServed": 0
+        },
+        "instantMetricResult": {
+          "entriesFound": 0,
+          "entriesRequested": 0,
+          "entriesStored": 0,
+          "bytesReceived": 0,
+          "bytesSent": 0,
+          "requests": 0,
+          "downloadTime": 0,
+          "queryLengthServed": 0
+        }
+      },
+      "index": {
+        "totalChunks": 0,
+        "postFilterChunks": 0,
+        "shardsDuration": 0,
+        "usedBloomFilters": false
+      }
+    }
+  }
+}

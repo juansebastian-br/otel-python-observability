@@ -1,0 +1,1061 @@
+{
+  "data": [
+    {
+      "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+      "spans": [
+        {
+          "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+          "spanID": "e448e47114223d1d",
+          "operationName": "POST /payments http receive",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+              "spanID": "5915376563de2276"
+            }
+          ],
+          "startTime": 1791760473772258,
+          "duration": 35,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.fastapi"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.66b0"
+            },
+            {
+              "key": "asgi.event.type",
+              "type": "string",
+              "value": "http.request"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+          "spanID": "dcd3a8a696488f08",
+          "operationName": "POST /payments http send",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+              "spanID": "5915376563de2276"
+            }
+          ],
+          "startTime": 1791760473823634,
+          "duration": 47,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.fastapi"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.66b0"
+            },
+            {
+              "key": "asgi.event.type",
+              "type": "string",
+              "value": "http.response.start"
+            },
+            {
+              "key": "http.status_code",
+              "type": "int64",
+              "value": 200
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+          "spanID": "83a7b80d2b19835a",
+          "operationName": "POST /payments http send",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+              "spanID": "5915376563de2276"
+            }
+          ],
+          "startTime": 1791760473823996,
+          "duration": 10,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.fastapi"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.66b0"
+            },
+            {
+              "key": "asgi.event.type",
+              "type": "string",
+              "value": "http.response.body"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+          "spanID": "5915376563de2276",
+          "operationName": "POST /payments",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+              "spanID": "3a536609fad8bc8b"
+            }
+          ],
+          "startTime": 1791760473770430,
+          "duration": 53620,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.fastapi"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.66b0"
+            },
+            {
+              "key": "client.address",
+              "type": "string",
+              "value": "172.19.0.9"
+            },
+            {
+              "key": "client.port",
+              "type": "int64",
+              "value": 51800
+            },
+            {
+              "key": "http.request.method",
+              "type": "string",
+              "value": "POST"
+            },
+            {
+              "key": "http.status_code",
+              "type": "int64",
+              "value": 200
+            },
+            {
+              "key": "http.route",
+              "type": "string",
+              "value": "/payments"
+            },
+            {
+              "key": "network.protocol.version",
+              "type": "string",
+              "value": "1.1"
+            },
+            {
+              "key": "server.address",
+              "type": "string",
+              "value": "172.19.0.8:8001"
+            },
+            {
+              "key": "server.port",
+              "type": "int64",
+              "value": 8001
+            },
+            {
+              "key": "url.path",
+              "type": "string",
+              "value": "/payments"
+            },
+            {
+              "key": "url.scheme",
+              "type": "string",
+              "value": "http"
+            },
+            {
+              "key": "user_agent.original",
+              "type": "string",
+              "value": "python-httpx/0.28.1"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "server"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+          "spanID": "e830111e00e2583c",
+          "operationName": "connect",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+              "spanID": "a22e81202e0cf533"
+            }
+          ],
+          "startTime": 1791760473806263,
+          "duration": 12124,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.sqlalchemy"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.66b0"
+            },
+            {
+              "key": "db.name",
+              "type": "string",
+              "value": "observability"
+            },
+            {
+              "key": "db.system",
+              "type": "string",
+              "value": "postgresql"
+            },
+            {
+              "key": "db.user",
+              "type": "string",
+              "value": "otel"
+            },
+            {
+              "key": "server.address",
+              "type": "string",
+              "value": "postgres"
+            },
+            {
+              "key": "server.port",
+              "type": "int64",
+              "value": 5432
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "client"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+          "spanID": "ac925c608e1be73a",
+          "operationName": "INSERT observability",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+              "spanID": "a22e81202e0cf533"
+            }
+          ],
+          "startTime": 1791760473819476,
+          "duration": 820,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.sqlalchemy"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.66b0"
+            },
+            {
+              "key": "db.name",
+              "type": "string",
+              "value": "observability"
+            },
+            {
+              "key": "db.operation",
+              "type": "string",
+              "value": "INSERT observability"
+            },
+            {
+              "key": "db.statement",
+              "type": "string",
+              "value": "\n                        INSERT INTO payments(order_id, amount, currency, status, created_at)\n                        VALUES (%(order_id)s, %(amount)s, %(currency)s, %(status)s, %(created)s)\n                        "
+            },
+            {
+              "key": "db.system",
+              "type": "string",
+              "value": "postgresql"
+            },
+            {
+              "key": "db.user",
+              "type": "string",
+              "value": "otel"
+            },
+            {
+              "key": "server.address",
+              "type": "string",
+              "value": "postgres"
+            },
+            {
+              "key": "server.port",
+              "type": "int64",
+              "value": 5432
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "client"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+          "spanID": "a22e81202e0cf533",
+          "operationName": "payment.authorize",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+              "spanID": "5915376563de2276"
+            }
+          ],
+          "startTime": 1791760473785927,
+          "duration": 37392,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "payments-service"
+            },
+            {
+              "key": "business.amount",
+              "type": "float64",
+              "value": 125000
+            },
+            {
+              "key": "business.currency",
+              "type": "string",
+              "value": "COP"
+            },
+            {
+              "key": "business.order_id",
+              "type": "string",
+              "value": "9cfa4a3c-d453-4b6e-a271-675d5d9151ea"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+          "spanID": "183b6b348b33f432",
+          "operationName": "POST /orders http receive",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+              "spanID": "d2a391692d8de2fe"
+            }
+          ],
+          "startTime": 1791760473706282,
+          "duration": 49,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.fastapi"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.66b0"
+            },
+            {
+              "key": "asgi.event.type",
+              "type": "string",
+              "value": "http.request"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            }
+          ],
+          "logs": [],
+          "processID": "p2",
+          "warnings": null
+        },
+        {
+          "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+          "spanID": "9d8491d5eb1d84db",
+          "operationName": "POST /orders http send",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+              "spanID": "d2a391692d8de2fe"
+            }
+          ],
+          "startTime": 1791760473830654,
+          "duration": 30,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.fastapi"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.66b0"
+            },
+            {
+              "key": "asgi.event.type",
+              "type": "string",
+              "value": "http.response.start"
+            },
+            {
+              "key": "http.status_code",
+              "type": "int64",
+              "value": 200
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            }
+          ],
+          "logs": [],
+          "processID": "p2",
+          "warnings": null
+        },
+        {
+          "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+          "spanID": "810c9cb6d958aa3c",
+          "operationName": "POST /orders http send",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+              "spanID": "d2a391692d8de2fe"
+            }
+          ],
+          "startTime": 1791760473830937,
+          "duration": 10,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.fastapi"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.66b0"
+            },
+            {
+              "key": "asgi.event.type",
+              "type": "string",
+              "value": "http.response.body"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            }
+          ],
+          "logs": [],
+          "processID": "p2",
+          "warnings": null
+        },
+        {
+          "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+          "spanID": "d2a391692d8de2fe",
+          "operationName": "POST /orders",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+              "spanID": "65e31fd62bb35e5a"
+            }
+          ],
+          "startTime": 1791760473705691,
+          "duration": 125305,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.fastapi"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.66b0"
+            },
+            {
+              "key": "client.address",
+              "type": "string",
+              "value": "172.19.0.1"
+            },
+            {
+              "key": "client.port",
+              "type": "int64",
+              "value": 60370
+            },
+            {
+              "key": "http.request.method",
+              "type": "string",
+              "value": "POST"
+            },
+            {
+              "key": "http.status_code",
+              "type": "int64",
+              "value": 200
+            },
+            {
+              "key": "http.route",
+              "type": "string",
+              "value": "/orders"
+            },
+            {
+              "key": "network.protocol.version",
+              "type": "string",
+              "value": "1.1"
+            },
+            {
+              "key": "server.address",
+              "type": "string",
+              "value": "172.19.0.9:8000"
+            },
+            {
+              "key": "server.port",
+              "type": "int64",
+              "value": 8000
+            },
+            {
+              "key": "url.path",
+              "type": "string",
+              "value": "/orders"
+            },
+            {
+              "key": "url.scheme",
+              "type": "string",
+              "value": "http"
+            },
+            {
+              "key": "user_agent.original",
+              "type": "string",
+              "value": "Python-urllib/3.13"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "server"
+            }
+          ],
+          "logs": [],
+          "processID": "p2",
+          "warnings": [
+            "parent span ID=65e31fd62bb35e5a is not in the trace; skipping clock skew adjustment"
+          ]
+        },
+        {
+          "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+          "spanID": "43363aa95c17b762",
+          "operationName": "connect",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+              "spanID": "399a7678ee689958"
+            }
+          ],
+          "startTime": 1791760473720553,
+          "duration": 13623,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.sqlalchemy"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.66b0"
+            },
+            {
+              "key": "db.name",
+              "type": "string",
+              "value": "observability"
+            },
+            {
+              "key": "db.system",
+              "type": "string",
+              "value": "postgresql"
+            },
+            {
+              "key": "db.user",
+              "type": "string",
+              "value": "otel"
+            },
+            {
+              "key": "server.address",
+              "type": "string",
+              "value": "postgres"
+            },
+            {
+              "key": "server.port",
+              "type": "int64",
+              "value": 5432
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "client"
+            }
+          ],
+          "logs": [],
+          "processID": "p2",
+          "warnings": null
+        },
+        {
+          "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+          "spanID": "79593ea5b1d02ea0",
+          "operationName": "INSERT observability",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+              "spanID": "399a7678ee689958"
+            }
+          ],
+          "startTime": 1791760473735790,
+          "duration": 799,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.sqlalchemy"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.66b0"
+            },
+            {
+              "key": "db.name",
+              "type": "string",
+              "value": "observability"
+            },
+            {
+              "key": "db.operation",
+              "type": "string",
+              "value": "INSERT observability"
+            },
+            {
+              "key": "db.statement",
+              "type": "string",
+              "value": "\n                        INSERT INTO orders(order_id, customer_id, amount, currency, status, created_at)\n                        VALUES (%(id)s, %(customer)s, %(amount)s, %(currency)s, %(status)s, %(created)s)\n                        "
+            },
+            {
+              "key": "db.system",
+              "type": "string",
+              "value": "postgresql"
+            },
+            {
+              "key": "db.user",
+              "type": "string",
+              "value": "otel"
+            },
+            {
+              "key": "server.address",
+              "type": "string",
+              "value": "postgres"
+            },
+            {
+              "key": "server.port",
+              "type": "int64",
+              "value": 5432
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "client"
+            }
+          ],
+          "logs": [],
+          "processID": "p2",
+          "warnings": null
+        },
+        {
+          "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+          "spanID": "11a13298ab076201",
+          "operationName": "connect",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+              "spanID": "399a7678ee689958"
+            }
+          ],
+          "startTime": 1791760473825328,
+          "duration": 378,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.sqlalchemy"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.66b0"
+            },
+            {
+              "key": "db.name",
+              "type": "string",
+              "value": "observability"
+            },
+            {
+              "key": "db.system",
+              "type": "string",
+              "value": "postgresql"
+            },
+            {
+              "key": "db.user",
+              "type": "string",
+              "value": "otel"
+            },
+            {
+              "key": "server.address",
+              "type": "string",
+              "value": "postgres"
+            },
+            {
+              "key": "server.port",
+              "type": "int64",
+              "value": 5432
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "client"
+            }
+          ],
+          "logs": [],
+          "processID": "p2",
+          "warnings": null
+        },
+        {
+          "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+          "spanID": "244190c5af804fb1",
+          "operationName": "UPDATE observability",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+              "spanID": "399a7678ee689958"
+            }
+          ],
+          "startTime": 1791760473825979,
+          "duration": 708,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.sqlalchemy"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.66b0"
+            },
+            {
+              "key": "db.name",
+              "type": "string",
+              "value": "observability"
+            },
+            {
+              "key": "db.operation",
+              "type": "string",
+              "value": "UPDATE observability"
+            },
+            {
+              "key": "db.statement",
+              "type": "string",
+              "value": "UPDATE orders SET status = %(status)s WHERE order_id = %(id)s"
+            },
+            {
+              "key": "db.system",
+              "type": "string",
+              "value": "postgresql"
+            },
+            {
+              "key": "db.user",
+              "type": "string",
+              "value": "otel"
+            },
+            {
+              "key": "server.address",
+              "type": "string",
+              "value": "postgres"
+            },
+            {
+              "key": "server.port",
+              "type": "int64",
+              "value": 5432
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "client"
+            }
+          ],
+          "logs": [],
+          "processID": "p2",
+          "warnings": null
+        },
+        {
+          "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+          "spanID": "3a536609fad8bc8b",
+          "operationName": "POST",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+              "spanID": "399a7678ee689958"
+            }
+          ],
+          "startTime": 1791760473767643,
+          "duration": 56836,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.httpx"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.66b0"
+            },
+            {
+              "key": "http.request.method",
+              "type": "string",
+              "value": "POST"
+            },
+            {
+              "key": "http.status_code",
+              "type": "int64",
+              "value": 200
+            },
+            {
+              "key": "network.peer.address",
+              "type": "string",
+              "value": "payments-service"
+            },
+            {
+              "key": "network.peer.port",
+              "type": "int64",
+              "value": 8001
+            },
+            {
+              "key": "network.protocol.version",
+              "type": "string",
+              "value": "1.1"
+            },
+            {
+              "key": "server.address",
+              "type": "string",
+              "value": "payments-service"
+            },
+            {
+              "key": "server.port",
+              "type": "int64",
+              "value": 8001
+            },
+            {
+              "key": "url.full",
+              "type": "string",
+              "value": "http://payments-service:8001/payments"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "client"
+            }
+          ],
+          "logs": [],
+          "processID": "p2",
+          "warnings": null
+        },
+        {
+          "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+          "spanID": "399a7678ee689958",
+          "operationName": "order.create",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "837fc6fd7e6e313ae1cbc71a2987cb5a",
+              "spanID": "d2a391692d8de2fe"
+            }
+          ],
+          "startTime": 1791760473720446,
+          "duration": 109911,
+          "tags": [
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "orders-service"
+            },
+            {
+              "key": "business.amount",
+              "type": "float64",
+              "value": 125000
+            },
+            {
+              "key": "business.currency",
+              "type": "string",
+              "value": "COP"
+            },
+            {
+              "key": "business.customer_id",
+              "type": "string",
+              "value": "correlation-probe"
+            },
+            {
+              "key": "business.order_id",
+              "type": "string",
+              "value": "9cfa4a3c-d453-4b6e-a271-675d5d9151ea"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            }
+          ],
+          "logs": [],
+          "processID": "p2",
+          "warnings": null
+        }
+      ],
+      "processes": {
+        "p1": {
+          "serviceName": "payments-service",
+          "tags": [
+            {
+              "key": "deployment.environment.name",
+              "type": "string",
+              "value": "local"
+            },
+            {
+              "key": "service.instance.id",
+              "type": "string",
+              "value": "7ddad3db95d4"
+            },
+            {
+              "key": "service.version",
+              "type": "string",
+              "value": "1.0.0"
+            },
+            {
+              "key": "telemetry.sdk.language",
+              "type": "string",
+              "value": "python"
+            },
+            {
+              "key": "telemetry.sdk.name",
+              "type": "string",
+              "value": "opentelemetry"
+            },
+            {
+              "key": "telemetry.sdk.version",
+              "type": "string",
+              "value": "1.45.0"
+            }
+          ]
+        },
+        "p2": {
+          "serviceName": "orders-service",
+          "tags": [
+            {
+              "key": "deployment.environment.name",
+              "type": "string",
+              "value": "local"
+            },
+            {
+              "key": "service.instance.id",
+              "type": "string",
+              "value": "ef8661e7d371"
+            },
+            {
+              "key": "service.version",
+              "type": "string",
+              "value": "1.0.0"
+            },
+            {
+              "key": "telemetry.sdk.language",
+              "type": "string",
+              "value": "python"
+            },
+            {
+              "key": "telemetry.sdk.name",
+              "type": "string",
+              "value": "opentelemetry"
+            },
+            {
+              "key": "telemetry.sdk.version",
+              "type": "string",
+              "value": "1.45.0"
+            }
+          ]
+        }
+      },
+      "warnings": null
+    }
+  ],
+  "total": 0,
+  "limit": 0,
+  "offset": 0,
+  "errors": null
+}

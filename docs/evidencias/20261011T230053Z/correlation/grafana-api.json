@@ -1,0 +1,70 @@
+{
+  "status": "PASS",
+  "scope": "API provisioning and Loki health; no visual UI assertion",
+  "datasources": {
+    "loki": {
+      "id": 3,
+      "uid": "loki",
+      "orgId": 1,
+      "name": "Loki",
+      "type": "loki",
+      "typeLogoUrl": "public/plugins/loki/img/loki_icon.svg",
+      "access": "proxy",
+      "url": "http://loki:3100",
+      "user": "",
+      "database": "",
+      "basicAuth": false,
+      "basicAuthUser": "",
+      "withCredentials": false,
+      "isDefault": false,
+      "jsonData": {
+        "derivedFields": [
+          {
+            "datasourceUid": "jaeger",
+            "matcherRegex": "\"trace_id\"\\s*:\\s*\"([a-f0-9]{32})\"",
+            "name": "TraceID",
+            "url": "${__value.raw}",
+            "urlDisplayLabel": "Ver traza en Jaeger"
+          }
+        ]
+      },
+      "secureJsonFields": {},
+      "version": 1,
+      "readOnly": true,
+      "apiVersion": ""
+    },
+    "jaeger": {
+      "id": 2,
+      "uid": "jaeger",
+      "orgId": 1,
+      "name": "Jaeger",
+      "type": "jaeger",
+      "typeLogoUrl": "public/plugins/jaeger/img/jaeger_logo.svg",
+      "access": "proxy",
+      "url": "http://jaeger:16686",
+      "user": "",
+      "database": "",
+      "basicAuth": false,
+      "basicAuthUser": "",
+      "withCredentials": false,
+      "isDefault": false,
+      "jsonData": {
+        "tracesToLogsV2": {
+          "customQuery": true,
+          "datasourceUid": "loki",
+          "query": "{service_name=~\"orders-service|payments-service\"} | trace_id=\"${__span.traceId}\"",
+          "spanEndTimeShift": "1m",
+          "spanStartTimeShift": "-1m"
+        }
+      },
+      "secureJsonFields": {},
+      "version": 1,
+      "readOnly": true,
+      "apiVersion": ""
+    }
+  },
+  "loki_health": {
+    "message": "Data source successfully connected.",
+    "status": "OK"
+  }
+}
