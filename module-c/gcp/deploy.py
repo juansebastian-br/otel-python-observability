@@ -238,8 +238,13 @@ def apply(plan, out):
         current = api("GET", url, missing_ok=True)
         if current and not current.get("description", "").startswith(expected):
             raise RuntimeError(f"Metric {metric['name']} already exists with another owner/scope. No changes applied.")
-    gcloud("services", "enable", "compute.googleapis.com", "logging.googleapis.com", "monitoring.googleapis.com",
-           "securitycenter.googleapis.com", "--project", project)
+    required_services = {"compute.googleapis.com", "logging.googleapis.com", "monitoring.googleapis.com",
+                         "securitycenter.googleapis.com"}
+    enabled_services = gcloud("services", "list", "--enabled", "--project", project) or []
+    enabled_names = {entry.get("config", {}).get("name") for entry in enabled_services}
+    missing_services = sorted(required_services - enabled_names)
+    if missing_services:
+        gcloud("services", "enable", *missing_services, "--project", project)
     original = out / "subnet-before.json"
     if not original.exists():
         save(original, c["subnet_before"])
@@ -253,7 +258,9 @@ def apply(plan, out):
         print("Flow Logs already enabled: existing sampling/metadata/filter preserved. See plan warnings.")
     monitoring_url = f"https://monitoring.googleapis.com/v3/projects/{project}"
     for descriptor in plan["descriptors"]:
-        existing = api("GET", monitoring_url + "/metricDescriptors/" + urllib.parse.quote(descriptor["type"], safe=""), missing_ok=True)
+        # Monitoring metric types form the remaining resource path. Encoding '/' here
+        # passes an invalid literal %2F name to Monitoring (unlike Logging's metricId).
+        existing = api("GET", monitoring_url + "/metricDescriptors/" + urllib.parse.quote(descriptor["type"], safe="/"), missing_ok=True)
         if existing is None:
             api("POST", monitoring_url + "/metricDescriptors", descriptor)
         else:

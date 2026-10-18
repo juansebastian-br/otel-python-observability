@@ -94,6 +94,12 @@ class ContractTests(unittest.TestCase):
         self.assertFalse(any("subnets" in call and "update" in call for call in gcloud_calls))
         self.assertTrue(any("/v1/" in url and "/dashboards" in url for _, url, _ in api_calls))
         self.assertFalse(any("/v3/" in url and "/dashboards" in url for _, url, _ in api_calls))
+        descriptor_get_urls = [url for method, url, _ in api_calls
+                               if method == "GET" and "/metricDescriptors/" in url]
+        self.assertEqual(set(descriptor_get_urls), {
+            "https://monitoring.googleapis.com/v3/projects/unit-test-project/metricDescriptors/custom.googleapis.com/security/active_cves",
+            "https://monitoring.googleapis.com/v3/projects/unit-test-project/metricDescriptors/custom.googleapis.com/security/cve_snapshot_timestamp"})
+        self.assertTrue(all("%2F" not in url for url in descriptor_get_urls))
 
     def test_apply_rejects_foreign_metrics_before_mutation(self):
         with tempfile.TemporaryDirectory(dir=TEST_TMP) as temp, \
