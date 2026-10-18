@@ -34,12 +34,14 @@ def manifest(namespace, image, port):
         "print('CANARY_COMPLETED: 240 real TCP requests')\n")
     deployment = {"apiVersion": "apps/v1", "kind": "Deployment", "metadata": {"name": NAME, "namespace": namespace, "labels": labels},
         "spec": {"replicas": 1, "selector": {"matchLabels": {"app": NAME}}, "template": {
-            "metadata": {"labels": labels}, "spec": {"automountServiceAccountToken": False, "containers": [server]}}}}
+            "metadata": {"labels": labels, "annotations": {"sidecar.istio.io/inject": "false"}},
+            "spec": {"automountServiceAccountToken": False, "containers": [server]}}}}
     service = {"apiVersion": "v1", "kind": "Service", "metadata": {"name": NAME, "namespace": namespace, "labels": labels},
         "spec": {"type": "ClusterIP", "selector": {"app": NAME}, "ports": [{"port": port, "targetPort": port}]}}
     job = {"apiVersion": "batch/v1", "kind": "Job", "metadata": {"name": NAME, "namespace": namespace, "labels": labels},
         "spec": {"ttlSecondsAfterFinished": 600, "activeDeadlineSeconds": 240, "backoffLimit": 0,
-            "template": {"metadata": {"labels": {"app": NAME + "-client", "managed-by": "otel-module-c"}},
+            "template": {"metadata": {"labels": {"app": NAME + "-client", "managed-by": "otel-module-c"},
+                                      "annotations": {"sidecar.istio.io/inject": "false"}},
                 "spec": {"automountServiceAccountToken": False, "restartPolicy": "Never", "containers": [dict(container, command=["python", "-c", client_code])]}}}}
     return deployment, service, job
 

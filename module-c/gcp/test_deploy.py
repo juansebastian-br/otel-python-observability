@@ -110,6 +110,7 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(job["spec"]["activeDeadlineSeconds"], 240)
         for workload in (deployment, job):
             self.assertFalse(workload["spec"]["template"]["spec"]["automountServiceAccountToken"])
+            self.assertEqual(workload["spec"]["template"]["metadata"]["annotations"]["sidecar.istio.io/inject"], "false")
         self.assertIn("range(240)", job["spec"]["template"]["spec"]["containers"][0]["command"][-1])
 
 
