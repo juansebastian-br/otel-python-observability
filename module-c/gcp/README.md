@@ -100,6 +100,18 @@ Generar al menos cinco rechazos reales en una ventana de 60 segundos. Verificar 
 
 Ejecutar el escaneo/publicación de `module-c/security/` sobre **todas las imágenes incluidas en el inventario declarado**. Publicar únicamente cuando el lote completo termina correctamente. El contrato de métricas es:
 
+El helper `scan_live_images.py` descubre el alcance concreto: todos los contenedores de aplicación declarados en `orders-service`, `payments-service` y `data-service`. Excluye sidecars, nodos y complementos del clúster. Comprueba los propietarios Deployment → ReplicaSet → Pod, un rollout estable con todas las réplicas listas y `imageID` reales de registro con digest `@sha256`. No escanea etiquetas mutables ni adivina el digest desde un hash local de containerd. Si falta una aplicación, hay una réplica no lista o aparecen digests distintos, se detiene.
+
+Con Trivy instalado y el helper de credenciales de Artifact Registry configurado:
+
+```bash
+gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+python3 module-c/gcp/scan_live_images.py
+python3 module-c/gcp/scan_live_images.py --scan --publish
+```
+
+Si Trivy está fuera de `PATH`, añadir `--scanner` con la ruta del ejecutable instalado. El primer comando Python solo inventaría; el segundo realiza el escaneo completo y publica. Antes de publicar vuelve a verificar que el inventario desplegado no haya cambiado durante el escaneo. Conserva inventario, reportes completos, hashes, snapshot y recibo en `.state/cve-scan-UTC/`. Las tres aplicaciones pueden compartir un digest, que se escanea una sola vez. El tiempo depende del tamaño de las imágenes y de la descarga de la base de vulnerabilidades.
+
 | Métrica | Tipo | Etiquetas | Valor |
 |---|---|---|---|
 | `custom.googleapis.com/security/active_cves` | GAUGE / INT64 / unidad 1 | `severity` | Inventario actual: CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN; publicar también ceros. |
