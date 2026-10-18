@@ -7,6 +7,8 @@ import subprocess
 import time
 
 NAME = "module-c-network-canary"
+REQUEST_COUNT = 240
+RESPONSE_BYTES = 64 * 1024
 
 
 def kubectl(namespace, *args, body=None):
@@ -24,14 +26,31 @@ def manifest(namespace, image, port):
         "securityContext": {"runAsNonRoot": True, "runAsUser": 10001,
             "allowPrivilegeEscalation": False, "capabilities": {"drop": ["ALL"]},
             "seccompProfile": {"type": "RuntimeDefault"}}}
-    server = dict(container, command=["python", "-m", "http.server", str(port), "--bind", "0.0.0.0", "--directory", "/tmp"],
+    server_code = ("from http.server import BaseHTTPRequestHandler,HTTPServer\n"
+        f"BODY=b'C'*{RESPONSE_BYTES}\n"
+        "class Handler(BaseHTTPRequestHandler):\n"
+        "    def do_GET(self):\n"
+        "        self.send_response(200)\n"
+        "        self.send_header('Content-Type','application/octet-stream')\n"
+        "        self.send_header('Content-Length',str(len(BODY)))\n"
+        "        self.end_headers()\n"
+        "        self.wfile.write(BODY)\n"
+        "    def log_message(self,*args): pass\n"
+        f"HTTPServer(('0.0.0.0',{port}),Handler).serve_forever()\n")
+    server = dict(container, command=["python", "-c", server_code],
         ports=[{"containerPort": port}], readinessProbe={"tcpSocket": {"port": port}, "periodSeconds": 2})
-    client_code = ("import time,urllib.request\n"
+    client_code = ("import time,urllib.request,json\n"
+        "from datetime import datetime,timezone\n"
+        "def utc(): return datetime.now(timezone.utc).isoformat().replace('+00:00','Z')\n"
         f"url='http://{NAME}:{port}/'\n"
-        "for i in range(240):\n"
-        "    with urllib.request.urlopen(url,timeout=5) as r: r.read()\n"
+        "received=0\n"
+        "print(json.dumps({'event':'canary_requests_started','timestamp':utc()}),flush=True)\n"
+        f"for i in range({REQUEST_COUNT}):\n"
+        f"    with urllib.request.urlopen(url,timeout=5) as r: data=r.read({RESPONSE_BYTES + 1})\n"
+        f"    if len(data)!={RESPONSE_BYTES}: raise RuntimeError('Unexpected response size; stopped')\n"
+        "    received+=len(data)\n"
         "    time.sleep(0.5)\n"
-        "print('CANARY_COMPLETED: 240 real TCP requests')\n")
+        f"print(json.dumps({{'event':'canary_requests_completed','timestamp':utc(),'requests':{REQUEST_COUNT},'received_payload_bytes':received}}),flush=True)\n")
     deployment = {"apiVersion": "apps/v1", "kind": "Deployment", "metadata": {"name": NAME, "namespace": namespace, "labels": labels},
         "spec": {"replicas": 1, "selector": {"matchLabels": {"app": NAME}}, "template": {
             "metadata": {"labels": labels, "annotations": {"sidecar.istio.io/inject": "false"}},
@@ -55,7 +74,8 @@ def main():
     namespace = config["namespace"]
     if not args.apply:
         print(f"Plan: create {NAME} Deployment/ClusterIP/Job in {config['project']}/{config['cluster']}/{namespace}; "
-              f"240 TCP requests to port {config['unexpected_port']}, then delete only these resources. Add --apply to run.")
+              f"{REQUEST_COUNT} TCP requests to port {config['unexpected_port']}, {RESPONSE_BYTES} response bytes each "
+              f"({REQUEST_COUNT * RESPONSE_BYTES} total payload bytes), then delete only these resources. Add --apply to run.")
         return
     subprocess.run(["gcloud", "container", "clusters", "get-credentials", config["cluster"], "--location", config["location"],
                     "--project", config["project"]], check=True)
@@ -80,7 +100,7 @@ def main():
         job_result = json.loads(kubectl(namespace, "get", "job", NAME, "-o", "json"))
         print(kubectl(namespace, "logs", "job/" + NAME))
         print(json.dumps({"provisioning_start_unix": started, "job_started_at": job_result.get("status", {}).get("startTime"),
-                         "end_unix": time.time(), "requests": 240,
+                         "end_unix": time.time(), "requests": REQUEST_COUNT, "expected_payload_bytes": REQUEST_COUNT * RESPONSE_BYTES,
                          "note": "Traffic generated. Verify actual Flow Logs and incident separately."}))
     finally:
         for kind in reversed(created):

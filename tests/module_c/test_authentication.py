@@ -22,6 +22,26 @@ spec.loader.exec_module(probe)
 
 
 class ProbeBoundaryTests(unittest.TestCase):
+    def test_probe_receipt_has_utc_window_and_per_request_timestamps(self):
+        from datetime import datetime
+        import urllib.error
+        opener = MagicMock()
+        opener.open.side_effect = urllib.error.HTTPError("http://127.0.0.1/orders", 401, "Unauthorized", {}, None)
+        output = io.StringIO()
+        with patch.object(sys, "argv", ["auth_probe.py", "--count", "1"]), patch.object(
+            probe.urllib.request, "build_opener", return_value=opener
+        ), redirect_stdout(output):
+            probe.main()
+        request, receipt = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual(request["status"], 401)
+        self.assertEqual(receipt["result"], "PASS")
+        self.assertEqual(receipt["trace_ids"], [request["trace_id"]])
+        values = [receipt["started_at"], request["sent_at"], request["completed_at"], receipt["completed_at"]]
+        instants = [datetime.fromisoformat(value) for value in values]
+        self.assertTrue(all(value.utcoffset().total_seconds() == 0 for value in instants))
+        self.assertEqual(instants, sorted(instants))
+        self.assertGreaterEqual(receipt["duration_seconds"], 0)
+
     def test_loopback_allowed(self):
         self.assertEqual(probe.validate_target("http://127.0.0.1:8000"), "http://127.0.0.1:8000/orders")
         self.assertEqual(probe.validate_target("http://[::1]:8000/orders"), "http://[::1]:8000/orders")

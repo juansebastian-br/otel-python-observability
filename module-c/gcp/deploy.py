@@ -208,7 +208,9 @@ def build(config):
             f"**{project} / {cluster} / {namespace}**. Red: **{config['network']}**, subred: **{config['subnet']}**. "
             "N-S cruza los CIDR de esta VPC; E-W permanece dentro. Los graficos de red muestran registros muestreados por minuto, "
             "no paquetes, bytes ni requests. Tramos peering/on-prem no enumerados se clasifican como externos. "
-            "La metadata de pods puede desaparecer por SNAT. CVEs: inventario completo publicado; sin muestras significa desconocido, no cero."}},
+            "La metadata de pods puede desaparecer por SNAT. CVEs: inventario completo de las imagenes de aplicacion declaradas en "
+            "orders-service, payments-service y data-service, por digest real. Excluye sidecars, nodos y complementos del cluster. "
+            "Sin muestras significa desconocido, no cero; consultar la edad real del snapshot."}},
         chart("Intentos fallidos / minuto por servicio", "auth_failures", "k8s_container", ["metric.label.service_name"]),
         chart("E-W: registros observados / minuto", "ew_flow_records", "gce_subnetwork"),
         chart("N-S saliente: registros observados / minuto", "ns_egress_flow_records", "gce_subnetwork"),

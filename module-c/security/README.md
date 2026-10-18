@@ -23,7 +23,7 @@ Con un port-forward al servicio de demostración en el puerto local 8080:
 python module-c/security/auth_probe.py --url http://127.0.0.1:8080 --count 8 --interval 1
 ```
 
-Los identificadores de trazas impresos por el generador permiten localizar las solicitudes. Para demostrar éxito, utilizar la clave del Secret en una solicitud autorizada, sin imprimirla ni guardarla en los archivos de evidencia.
+Los identificadores de trazas impresos por el generador permiten localizar las solicitudes. Cada solicitud informa `sent_at` y `completed_at` UTC; el recibo final incluye `started_at`, `completed_at` y la duración medida. Estas horas delimitan la prueba, pero el MTTD requiere además la hora real de apertura del incidente en Monitoring. Para demostrar éxito, utilizar la clave del Secret en una solicitud autorizada, sin imprimirla ni guardarla en los archivos de evidencia.
 
 ## CVEs activos: estado, no contador de hallazgos
 
@@ -45,6 +45,18 @@ La operación `publish` exige `--snapshot` y `--project`. Verifica nuevamente lo
 Las severidades son `CRITICAL`, `HIGH`, `MEDIUM`, `LOW` y `UNKNOWN`. El recurso `global` lleva `project_id`. El proceso usa la autenticación activa de `gcloud`, solicita un token en memoria y envía las series a Cloud Monitoring sin imprimir el token. El principal requiere permiso `monitoring.timeSeries.create`, normalmente mediante `roles/monitoring.metricWriter`.
 
 Estas métricas complementan Security Command Center; no sustituyen su activación ni convierten los resultados de Trivy en hallazgos de SCC.
+
+### Continuidad del escaneo
+
+La actualización implementada se ejecuta bajo demanda con `scan_live_images.py`. Una instantánea histórica no demuestra vigilancia continua: después de una hora sin un escaneo completo nuevo debe activarse la señal de frescura. Volver a publicar la instantánea anterior no corrige su antigüedad.
+
+La opción durable recomendada es un CronJob de GKE cada 30 minutos en `observability-lab`, con `concurrencyPolicy: Forbid`, límite de ejecución de 20 minutos y fecha límite de inicio de 5 minutos. Debe redescubrir los digests de los tres despliegues, comprobar que el inventario no cambió durante el escaneo y publicar solo si todo concluye correctamente, usando las mismas validaciones de `scan_live_images.py`.
+
+Antes de activarlo debe verificarse que exista una identidad de carga autorizada para leer esas imágenes de Artifact Registry, escribir métricas y consultar pods, ReplicaSets y deployments únicamente en ese namespace. Usar Workload Identity sin claves descargadas. El rol habitual para publicar métricas es `roles/monitoring.metricWriter`; lectura de imágenes requiere los permisos correspondientes de Artifact Registry. La autorización de lectura en Kubernetes es independiente de IAM de GCP.
+
+No se ha creado ese CronJob ni se han ampliado permisos IAM como parte de esta entrega. Si no existe una identidad adecuada, la programación queda como mejora pendiente; no se deben reutilizar credenciales personales de Cloud Shell, claves JSON ni privilegios del nodo para aparentar una ejecución autónoma. El cron local de Cloud Shell no es una opción durable porque la sesión puede detenerse. La imagen de demostración de autenticación tampoco contiene el escáner ni las herramientas necesarias para esa tarea.
+
+Referencias de operación: [CronJob y control de concurrencia](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/), [Workload Identity Federation para GKE](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/workload-identity).
 
 ## Despliegue independiente en el sandbox GCP
 

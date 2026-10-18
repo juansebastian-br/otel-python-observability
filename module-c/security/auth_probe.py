@@ -1,5 +1,6 @@
 """Send a bounded, non-destructive rejected-credential probe to a sandbox."""
 import argparse
+from datetime import datetime, timezone
 import ipaddress
 import json
 import secrets
@@ -47,6 +48,8 @@ def main():
         parser.error(str(exc))
     opener = urllib.request.build_opener(NoRedirects())
     trace_ids = []
+    started_at = datetime.now(timezone.utc).isoformat()
+    started_clock = time.perf_counter()
     for index in range(args.count):
         trace_id, span_id = secrets.token_hex(16), secrets.token_hex(8)
         trace_ids.append(trace_id)
@@ -57,6 +60,7 @@ def main():
                 "traceparent": f"00-{trace_id}-{span_id}-01",
             },
         )
+        sent_at = datetime.now(timezone.utc).isoformat()
         try:
             with opener.open(request, timeout=10) as response:
                 status = response.status
@@ -66,10 +70,13 @@ def main():
             raise SystemExit(f"Probe stopped: sandbox connection failed ({type(exc.reason).__name__})")
         if status != 401:
             raise SystemExit(f"Probe stopped: expected HTTP 401, received {status}; verify sandbox authentication")
-        print(json.dumps({"probe": index + 1, "status": status, "trace_id": trace_id}))
+        print(json.dumps({"probe": index + 1, "status": status, "trace_id": trace_id,
+                          "sent_at": sent_at, "completed_at": datetime.now(timezone.utc).isoformat()}), flush=True)
         if index + 1 < args.count:
             time.sleep(args.interval)
-    print(json.dumps({"result": "PASS", "rejected_requests": args.count, "trace_ids": trace_ids}))
+    print(json.dumps({"result": "PASS", "rejected_requests": args.count, "trace_ids": trace_ids,
+                      "started_at": started_at, "completed_at": datetime.now(timezone.utc).isoformat(),
+                      "duration_seconds": round(time.perf_counter() - started_clock, 3)}), flush=True)
 
 
 if __name__ == "__main__":

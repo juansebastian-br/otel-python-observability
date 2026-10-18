@@ -130,6 +130,15 @@ class ContractTests(unittest.TestCase):
             self.assertFalse(workload["spec"]["template"]["spec"]["automountServiceAccountToken"])
             self.assertEqual(workload["spec"]["template"]["metadata"]["annotations"]["sidecar.istio.io/inject"], "false")
         self.assertIn("range(240)", job["spec"]["template"]["spec"]["containers"][0]["command"][-1])
+        client_code = job["spec"]["template"]["spec"]["containers"][0]["command"][-1]
+        server_code = deployment["spec"]["template"]["spec"]["containers"][0]["command"][-1]
+        self.assertIn("BODY=b'C'*65536", server_code)
+        self.assertIn("r.read(65537)", client_code)
+        self.assertIn("canary_requests_started", client_code)
+        self.assertIn("canary_requests_completed", client_code)
+        self.assertEqual(network_canary.REQUEST_COUNT * network_canary.RESPONSE_BYTES, 15728640)
+        compile(server_code, "canary-server", "exec")
+        compile(client_code, "canary-client", "exec")
 
 
 if __name__ == "__main__":
