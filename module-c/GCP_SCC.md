@@ -4,6 +4,8 @@
 
 La consulta real `gcloud projects describe crafty-dynamics-239114 --format=json` devolvió el proyecto sin el campo `parent`. El proyecto fue creado en 2019. Este resultado indica que no pertenece a una organización, según el criterio de [Resource Manager para proyectos sin organización](https://docs.cloud.google.com/resource-manager/docs/handle-special-cases). Por tanto, la activación de Security Command Center (SCC) permanece **pendiente por un requisito del proyecto**, no por falta de código del módulo.
 
+La consola confirmó el mismo impedimento en la vista `security/command-center/no-org`: exige pertenecer a una organización. La captura real se incluye en el informe del módulo, con el estado observado y la ruta para completar el requisito.
+
 Google exige que el proyecto pertenezca a una organización para activar SCC, incluso con alcance de proyecto y nivel Standard. Habilitar `securitycenter.googleapis.com` por sí solo no activa SCC. [Requisitos oficiales de activación](https://docs.cloud.google.com/security-command-center/docs/activate-scc-for-a-project).
 
 ## Comprobar el estado sin modificar recursos
