@@ -113,6 +113,38 @@ def discover(args):
             "auth_failures_threshold": args.auth_failures_threshold}
 
 
+def flow_resource(config):
+    """Monitoring resource is explicit when using a non-legacy log backend."""
+    return config.get("flow_metric_resource", "gce_subnetwork")
+
+
+def flow_log_filter(config):
+    if config.get("flow_backend", "compute") == "network-management":
+        return ('log_id("networkmanagement.googleapis.com/vpc_flows") AND resource.type="vpc_flow_logs_config" '
+                f'AND resource.labels.name={q(config["flow_config_name"])}')
+    return (f'log_id("compute.googleapis.com/vpc_flows") AND resource.type="gce_subnetwork" '
+            f'AND resource.labels.subnetwork_id={q(config["subnet_id"])}')
+
+
+def verify_flow_backend(config, out):
+    """Read-only gate: migration may reuse only an owned, enabled exact-subnet config."""
+    if config.get("flow_backend", "compute") != "network-management":
+        return None
+    from flow_diagnostic import assert_owned, configuration
+    name = f"projects/{config['project']}/locations/global/vpcFlowLogsConfigs/{config['flow_config_name']}"
+    existing = api("GET", "https://networkmanagement.googleapis.com/v1/" + name)
+    receipt_paths = [out / "flow-diagnostic-owned.json", out / "network-diagnostic-operation.json"]
+    if config.get("flow_creation_receipt"):
+        receipt_paths.append(pathlib.Path(config["flow_creation_receipt"]))
+    receipts = [json.loads(path.read_text(encoding="utf-8")) for path in receipt_paths if path.exists()]
+    assert_owned(existing, configuration(config), receipts)
+    if existing.get("state") != "ENABLED":
+        raise ValueError("Network Management flow configuration is not ENABLED; no changes applied")
+    if existing.get("metadata") != "INCLUDE_ALL_METADATA" or existing.get("filterExpr", "true") != "true":
+        raise ValueError("Network Management flow configuration may hide pod metadata/flows; inspect before migration")
+    return existing
+
+
 def counter(name, description, log_filter, labels=None):
     metric = {"name": "module_c/" + name, "description": description, "filter": log_filter,
               "metricDescriptor": {"metricKind": "DELTA", "valueType": "INT64", "unit": "1"}}
@@ -159,8 +191,8 @@ def build(config):
     src_ns = f'jsonPayload.src_gke_details.pod.pod_namespace={q(namespace)}'
     dst_ns = f'jsonPayload.dest_gke_details.pod.pod_namespace={q(namespace)}'
     # Scope by the actual subnet ID. Node SNAT can remove pod metadata from external flows.
-    flow = (f'log_id("compute.googleapis.com/vpc_flows") AND resource.type="gce_subnetwork" '
-            f'AND resource.labels.subnetwork_id={q(config["subnet_id"])}')
+    flow = flow_log_filter(config)
+    network_resource = flow_resource(config)
     in_src = "(" + " OR ".join(f'ip_in_net(jsonPayload.connection.src_ip,{q(c)})' for c in config["network_cidrs"]) + ")"
     in_dst = "(" + " OR ".join(f'ip_in_net(jsonPayload.connection.dest_ip,{q(c)})' for c in config["network_cidrs"]) + ")"
     # Count one reporter per direction to avoid SRC+DEST duplication. Separate boundary directions.
@@ -189,10 +221,10 @@ def build(config):
     policies = [threshold_policy("auth", "Modulo C - autenticaciones fallidas", "auth_failures", "k8s_container",
           config["auth_failures_threshold"], "Revisar eventos authentication_failed en " + logs_url +
           ". Usar trace_id y service_name del JSON para correlacionar. No copiar credenciales. Umbral: intentos por ventana de 60 s.", config["channels"]),
-        threshold_policy("unexpected_port", "Modulo C - puerto inesperado entre servicios", "interservice_unexpected_port", "gce_subnetwork", 0,
+        threshold_policy("unexpected_port", "Modulo C - puerto inesperado entre servicios", "interservice_unexpected_port", network_resource, 0,
           f"Puerto TCP {config['unexpected_port']} observado entre pods de {cluster}/{namespace}. Revisar origen/destino/horario en {logs_url}. "
           "Comparar con despliegues y autorizaciones; detener solo el generador de prueba. Este contador no significa firewall DENY.", config["channels"]),
-        threshold_policy("traffic_spike", "Modulo C - pico de registros entre servicios", "interservice_flow_records", "gce_subnetwork",
+        threshold_policy("traffic_spike", "Modulo C - pico de registros entre servicios", "interservice_flow_records", network_resource,
           config["flow_records_threshold"], "Umbral de laboratorio ajustable: registros muestreados por 60 s. Comparar con 15 min de baseline; "
           "verificar sampling, replicas y cambios de carga antes de escalar. Investigar pares IP/puerto en " + logs_url, config["channels"], "60s")]
     snapshot_selector = '{' + q(SNAPSHOT) + ', monitored_resource="global", project_id=' + q(project) + '}'
@@ -206,16 +238,17 @@ def build(config):
     widgets = [
         {"title": "Cobertura y lectura", "text": {"format": "MARKDOWN", "content":
             f"**{project} / {cluster} / {namespace}**. Red: **{config['network']}**, subred: **{config['subnet']}**. "
+            f"Fuente exclusiva: **{config.get('flow_backend', 'compute')}**. "
             "N-S cruza los CIDR de esta VPC; E-W permanece dentro. Los graficos de red muestran registros muestreados por minuto, "
             "no paquetes, bytes ni requests. Tramos peering/on-prem no enumerados se clasifican como externos. "
             "La metadata de pods puede desaparecer por SNAT. CVEs: inventario completo de las imagenes de aplicacion declaradas en "
             "orders-service, payments-service y data-service, por digest real. Excluye sidecars, nodos y complementos del cluster. "
             "Sin muestras significa desconocido, no cero; consultar la edad real del snapshot."}},
         chart("Intentos fallidos / minuto por servicio", "auth_failures", "k8s_container", ["metric.label.service_name"]),
-        chart("E-W: registros observados / minuto", "ew_flow_records", "gce_subnetwork"),
-        chart("N-S saliente: registros observados / minuto", "ns_egress_flow_records", "gce_subnetwork"),
-        chart("N-S entrante: registros observados / minuto", "ns_ingress_flow_records", "gce_subnetwork"),
-        chart("Puerto inesperado entre servicios / minuto", "interservice_unexpected_port", "gce_subnetwork"),
+        chart("E-W: registros observados / minuto", "ew_flow_records", network_resource),
+        chart("N-S saliente: registros observados / minuto", "ns_egress_flow_records", network_resource),
+        chart("N-S entrante: registros observados / minuto", "ns_ingress_flow_records", network_resource),
+        chart("Puerto inesperado entre servicios / minuto", "interservice_unexpected_port", network_resource),
         chart("CVEs activos por severidad (snapshot)", ACTIVE_CVES, "global", ["metric.label.severity"], "ALIGN_MAX"),
         {"title": "Edad real del snapshot CVE (segundos)", "xyChart": {"dataSets": [{"plotType": "LINE",
             "timeSeriesQuery": {"prometheusQuery": snapshot_age}}], "yAxis": {"label": "Segundos", "scale": "LINEAR"}}}]
@@ -232,6 +265,9 @@ def save(path, value):
 def apply(plan, out):
     c = plan["config"]
     project = c["project"]
+    backend_config = verify_flow_backend(c, out)
+    if backend_config:
+        save(out / "network-management-selected.json", backend_config)
     # Fail before mutation if an existing metric belongs to a different lab scope.
     logging_url = f"https://logging.googleapis.com/v2/projects/{project}/metrics"
     expected = f"{OWNER} {project}/{c['cluster']}/{c['namespace']}. "
@@ -252,7 +288,9 @@ def apply(plan, out):
         save(original, c["subnet_before"])
     # Preserve a previously enabled log configuration. Do not overwrite sampling or filters silently.
     current_log = c["subnet_before"].get("logConfig", {})
-    if not current_log.get("enable"):
+    if c.get("flow_backend", "compute") == "network-management":
+        print("Using the verified Network Management configuration; existing Compute subnet settings preserved.")
+    elif not current_log.get("enable"):
         gcloud("compute", "networks", "subnets", "update", c["subnet"], "--region", c["region"],
                "--project", project, "--enable-flow-logs", "--logging-aggregation-interval", "interval-5-sec",
                "--logging-flow-sampling", "1.0", "--logging-metadata", "include-all")
@@ -317,6 +355,10 @@ def main(argv=None):
     parser.add_argument("--unexpected-port", type=int, default=4444)
     parser.add_argument("--flow-records-threshold", type=int, default=120)
     parser.add_argument("--auth-failures-threshold", type=int, default=4)
+    parser.add_argument("--flow-backend", choices=("compute", "network-management"), default="compute")
+    parser.add_argument("--flow-config-name", default="module-c-subnet-diagnostic")
+    parser.add_argument("--flow-metric-resource", help="Verified Monitoring resource type for Network Management log metrics")
+    parser.add_argument("--flow-creation-receipt", type=pathlib.Path, help="Saved successful creation receipt when API omits ownership labels")
     parser.add_argument("--sandbox-subnet", help="Exact discovered subnet name, mandatory for apply")
     parser.add_argument("--out", type=pathlib.Path, default=HERE / ".state")
     args = parser.parse_args(argv)
@@ -333,6 +375,15 @@ def main(argv=None):
         # Evidence is read-only and must preserve the approved channel configuration.
     else:
         config = discover(args)
+        if args.flow_backend == "network-management":
+            if not args.flow_metric_resource or not re.fullmatch(r"[a-z][a-z0-9_]*", args.flow_metric_resource):
+                parser.error("Network Management requires --flow-metric-resource with the verified Monitoring resource type")
+            if not re.fullmatch(r"[a-z][a-z0-9-]{0,62}", args.flow_config_name):
+                parser.error("Invalid --flow-config-name")
+        config.update({"flow_backend": args.flow_backend, "flow_config_name": args.flow_config_name,
+            "flow_metric_resource": args.flow_metric_resource if args.flow_backend == "network-management" else "gce_subnetwork"})
+        if args.flow_creation_receipt:
+            config["flow_creation_receipt"] = str(args.flow_creation_receipt.resolve())
         plan = build(config)
         save(args.out / "plan.json", plan)
     print(json.dumps({key: config[key] for key in ("project", "parent", "cluster", "location", "network", "subnet", "autopilot", "intranode_visibility")}, indent=2))

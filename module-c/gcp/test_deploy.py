@@ -52,6 +52,35 @@ class ContractTests(unittest.TestCase):
         self.assertIn('jsonPayload.event="authentication_failed"', rule)
         self.assertNotIn("trace_id", self.metric("auth_failures")["labelExtractors"])
 
+    def test_network_backend_is_exclusive_and_uses_explicit_monitoring_resource(self):
+        chosen = config()
+        chosen.update({"flow_backend": "network-management", "flow_config_name": "unit-test-flow",
+                       "flow_metric_resource": "global"})
+        plan = deploy.build(chosen)
+        network_metrics = [m for m in plan["metrics"] if m["name"] != "module_c/auth_failures"]
+        for metric in network_metrics:
+            self.assertIn('log_id("networkmanagement.googleapis.com/vpc_flows")', metric["filter"])
+            self.assertIn('resource.labels.name="unit-test-flow"', metric["filter"])
+            self.assertNotIn("compute.googleapis.com", metric["filter"])
+        for policy in plan["policies"]:
+            if policy["userLabels"]["module_c_rule"] in ("unexpected_port", "traffic_spike"):
+                self.assertIn('resource.type = "global"', policy["conditions"][0]["conditionThreshold"]["filter"])
+
+    def test_network_backend_gate_refuses_foreign_disabled_or_wrong_subnet(self):
+        chosen = config()
+        chosen.update({"flow_backend": "network-management", "flow_config_name": "unit-test-flow",
+                       "flow_metric_resource": "global"})
+        existing = {"state": "ENABLED", "metadata": "INCLUDE_ALL_METADATA", "labels": {"managed_by": deploy.OWNER},
+            "subnet": "projects/unit-test-project/regions/us-central1/subnetworks/unit-test-subnet"}
+        with tempfile.TemporaryDirectory(dir=TEST_TMP) as temp:
+            for changed in ({"state": "DISABLED"}, {"subnet": "foreign"}, {"labels": {}}, {"metadata": "EXCLUDE_ALL_METADATA"}):
+                with patch.object(deploy, "api", return_value=dict(existing, **changed)), patch.object(deploy, "gcloud") as cloud:
+                    with self.assertRaises(ValueError):
+                        deploy.apply(deploy.build(chosen), pathlib.Path(temp))
+                    cloud.assert_not_called()
+            with patch.object(deploy, "api", return_value=existing):
+                self.assertEqual(deploy.verify_flow_backend(chosen, pathlib.Path(temp)), existing)
+
     def test_snapshot_gauge_and_age_check(self):
         descriptor = next(d for d in self.plan["descriptors"] if d["type"] == deploy.ACTIVE_CVES)
         self.assertEqual(descriptor["metricKind"], "GAUGE")

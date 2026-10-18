@@ -152,6 +152,22 @@ Conservar `.state/plan.json`, `.state/applied.json`, `subnet-before.json` y los 
 | CVEs | Inventario completo, salida del escáner, cinco severidades y edad del snapshot. |
 | SCC | Nivel Standard confirmado y Findings; si falta organización, documentar bloqueo. |
 
+## Diagnóstico opcional con Network Management
+
+Si la configuración de Compute aparece activa pero no hay registros, `flow_diagnostic.py` permite reproducir una prueba adicional sobre **la misma subred**, con TCP connection logging. No cambia los filtros de métricas ni el dashboard. Se ejecuta por separado y no forma parte del `apply` principal:
+
+```bash
+python3 module-c/gcp/flow_diagnostic.py plan
+python3 module-c/gcp/flow_diagnostic.py create
+python3 module-c/gcp/network_canary.py --apply
+python3 module-c/gcp/flow_diagnostic.py capture
+python3 module-c/gcp/flow_diagnostic.py cleanup
+```
+
+`plan` no modifica recursos; `create` habilita la API Network Management si hace falta y crea únicamente `module-c-subnet-diagnostic` apuntando a la subred del plan. Captura configuración, operación y hasta 100 registros. `cleanup` exige la subred esperada y propiedad comprobada: etiqueta `managed_by=otel-module-c` o recibo de creación exitoso cuyo nombre completo, subred, `createTime` y descripción coincidan exactamente con el recurso actual. Nunca basta el nombre. Esto admite la API observada que omite etiquetas en su respuesta. El recibo se guarda en `.state/flow-diagnostic-owned.json`; también se reconoce `.state/network-diagnostic-operation.json`, o se puede pasar `--creation-receipt` con el JSON real de la operación exitosa. No deshabilita la API ni cambia la configuración Compute original. `status` consulta la configuración y las configuraciones efectivas sin escribir en cloud.
+
+Se usa la API directamente porque la versión de `gcloud` disponible puede no exponer TCP connection logging. El enum aceptado en la ejecución real fue `CONNECTION_LOGGING_ENABLED`. Este flujo emite `networkmanagement.googleapis.com/vpc_flows` con recurso `vpc_flow_logs_config` y `resource.labels.name=module-c-subnet-diagnostic`. Las métricas principales siguen leyendo exclusivamente `compute.googleapis.com/vpc_flows`; no sumar ambos streams porque configuraciones superpuestas pueden duplicar registros. Una configuración creada no demuestra que haya datos: verificar la captura. Retener o migrar al nuevo mecanismo requiere comprobar primero sus registros reales y el recurso resultante de las series de Monitoring.
+
 ## Fuentes oficiales verificadas
 
 - [Formato y metadatos de VPC Flow Logs](https://docs.cloud.google.com/vpc/docs/about-flow-logs-records).

@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 import urllib.parse
 
-from deploy import ACTIVE_CVES, SNAPSHOT, OWNER, api, gcloud, list_all, metric_filter, save
+from deploy import ACTIVE_CVES, SNAPSHOT, OWNER, api, gcloud, list_all, metric_filter, flow_resource, save
 
 HERE = Path(__file__).resolve().parent
 
@@ -74,6 +74,14 @@ def main():
         "--region", config["region"], "--project", project))
     summary["flow_logs"] = {"configured_enabled": subnet.get("logConfig", {}).get("enable", False),
         "actual_log_config": subnet.get("logConfig", {})} if subnet is not None else {"configured_enabled": None}
+    summary["flow_logs"]["selected_backend"] = config.get("flow_backend", "compute")
+    summary["flow_logs"]["monitoring_resource_type"] = flow_resource(config)
+    if config.get("flow_backend") == "network-management":
+        selected = capture("network-management-current", lambda: api("GET",
+            f"https://networkmanagement.googleapis.com/v1/projects/{project}/locations/global/vpcFlowLogsConfigs/{config['flow_config_name']}"))
+        summary["flow_logs"]["compute_subnet_enabled"] = summary["flow_logs"]["configured_enabled"]
+        summary["flow_logs"]["configured_enabled"] = selected.get("state") == "ENABLED" if selected is not None else None
+        summary["flow_logs"]["network_management_configuration"] = selected
     for desired in plan["metrics"]:
         name = desired["name"]
         slug = name.split("/")[-1]
@@ -83,8 +91,9 @@ def main():
             "resourceNames": ["projects/" + project], "filter": desired["filter"] + f' AND timestamp >= "{start}" AND timestamp <= "{end}"',
             "orderBy": "timestamp desc", "pageSize": 100}))
         series = capture(slug + "-series", lambda slug=slug: series_query(project, slug,
-            "k8s_container" if slug == "auth_failures" else "gce_subnetwork", start, end))
+            "k8s_container" if slug == "auth_failures" else flow_resource(config), start, end))
         summary["log_metrics"][name] = {"configured": metric is not None,
+            "configured_filter_matches_plan": metric.get("filter") == desired["filter"] if metric is not None else None,
             "observed_log_entries": len(logs.get("entries", [])) if logs is not None else None,
             "logs_truncated": bool(logs.get("nextPageToken")) if logs is not None else None,
             "observed_time_series": len(series["timeSeries"]) if series is not None else None,
