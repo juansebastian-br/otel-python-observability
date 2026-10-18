@@ -46,6 +46,59 @@ Las severidades son `CRITICAL`, `HIGH`, `MEDIUM`, `LOW` y `UNKNOWN`. El recurso 
 
 Estas métricas complementan Security Command Center; no sustituyen su activación ni convierten los resultados de Trivy en hallazgos de SCC.
 
+## Despliegue independiente en el sandbox GCP
+
+Desde la raíz del repositorio en Cloud Shell, construir y publicar la imagen del servicio independiente:
+
+```bash
+gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+docker build -f module-c/security/Dockerfile -t us-central1-docker.pkg.dev/crafty-dynamics-239114/observability-final/module-c-auth-probe:v1 .
+docker push us-central1-docker.pkg.dev/crafty-dynamics-239114/observability-final/module-c-auth-probe:v1
+python3 module-c/security/deploy_probe.py \
+  --project crafty-dynamics-239114 \
+  --cluster otel-lab --location us-central1 \
+  --namespace observability-lab \
+  --registry us-central1-docker.pkg.dev/crafty-dynamics-239114/observability-final \
+  --image us-central1-docker.pkg.dev/crafty-dynamics-239114/observability-final/module-c-auth-probe:v1 \
+  --otlp-endpoint otel-collector:4317
+```
+
+Si Cloud Shell no puede subir la imagen directamente a Artifact Registry, construirla y publicarla mediante Cloud Build:
+
+```bash
+gcloud builds submit . \
+  --project crafty-dynamics-239114 --region us-central1 \
+  --config module-c/security/cloudbuild.yaml \
+  --ignore-file module-c/security/cloudbuild.gcloudignore \
+  --substitutions _IMAGE=us-central1-docker.pkg.dev/crafty-dynamics-239114/observability-final/module-c-auth-probe:v1
+```
+
+La lista permitida de `module-c/security/cloudbuild.gcloudignore` sube únicamente los cinco archivos necesarios para esta construcción y el propio archivo de exclusión. No incluye `.git`, `.state`, credenciales, pruebas, cachés ni evidencias. La exclusión se aplica solo al comando que la solicita y no cambia las construcciones de otros integrantes. `_IMAGE` es obligatorio y no tiene un destino implícito. Cloud Build construye y publica la imagen; después se ejecuta `deploy_probe.py` con los mismos argumentos de arriba. La identidad de ejecución de Cloud Build necesita escritura en el repositorio de Artifact Registry y permisos para escribir sus logs.
+
+El helper obtiene las credenciales del clúster indicado y usa su contexto explícito. Antes de escribir comprueba que no existan objetos con el mismo nombre pertenecientes a otro administrador. Crea una clave aleatoria sin mostrarla ni guardarla en disco; si ya existe el Secret administrado, conserva su clave. Usa `API_KEY` como clave del Secret y la expone exclusivamente como `SECURITY_API_KEY` al contenedor. El nombre de Secret, Deployment y Service es `module-c-auth-probe`.
+
+El pod corre sin privilegios, como usuario 65534, con sistema de archivos de solo lectura, capacidades eliminadas y sin token de ServiceAccount. Solicita 100m de CPU y 128Mi de memoria; sus límites son 500m y 256Mi. La inyección automática de Istio está desactivada para esta demostración. El Service es interno de tipo ClusterIP y no crea una dirección pública.
+
+Para probarlo, mantener este comando en una terminal:
+
+```bash
+kubectl --context gke_crafty-dynamics-239114_us-central1_otel-lab -n observability-lab port-forward service/module-c-auth-probe 8080:8080
+```
+
+En otra terminal:
+
+```bash
+python3 module-c/security/auth_probe.py --url http://127.0.0.1:8080 --count 8 --interval 1
+```
+
+El servicio permanece disponible para la demostración. Cuando termine el laboratorio y ya se hayan conservado las evidencias, eliminar únicamente estos recursos con el contexto explícito:
+
+```bash
+kubectl --context gke_crafty-dynamics-239114_us-central1_otel-lab -n observability-lab delete deployment,service,secret module-c-auth-probe
+```
+
+La eliminación anterior también elimina la clave de demostración. No elimina ni modifica `orders-service`, `payments-service`, `data-service` ni el Collector.
+
 ## Verificación local
 
 Instalar las dependencias de `services/orders/requirements.txt` en un entorno aislado y ejecutar, desde la raíz del repositorio:
