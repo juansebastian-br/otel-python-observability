@@ -4,11 +4,12 @@ import uuid
 from datetime import datetime, timezone
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import create_engine, text
 
 from .otel import configure_otel, shutdown_otel
+from .security import build_api_key_guard
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
@@ -18,6 +19,7 @@ PAYMENTS_URL = os.getenv("PAYMENTS_URL", "http://payments-service:8001")
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 app = FastAPI(title="Orders Service", version="1.0.0")
+require_api_key = build_api_key_guard()
 
 tracer, meter, logger = configure_otel(app, engine)
 
@@ -41,7 +43,7 @@ class OrderRequest(BaseModel):
 def health():
     return {"status": "UP", "service": "orders-service"}
 
-@app.post("/orders")
+@app.post("/orders", dependencies=[Depends(require_api_key)])
 def create_order(request: OrderRequest):
     start = time.perf_counter()
     order_id = str(uuid.uuid4())
