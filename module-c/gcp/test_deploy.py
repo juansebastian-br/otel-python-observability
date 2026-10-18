@@ -109,6 +109,18 @@ class ContractTests(unittest.TestCase):
                 deploy.apply(self.plan, pathlib.Path(temp))
             cloud.assert_not_called()
 
+    def test_evidence_does_not_overwrite_saved_channels_or_rediscover(self):
+        plan = copy.deepcopy(self.plan)
+        plan["config"]["channels"] = ["projects/unit-test-project/notificationChannels/approved"]
+        with tempfile.TemporaryDirectory(dir=TEST_TMP) as temp:
+            path = pathlib.Path(temp) / "plan.json"
+            deploy.save(path, plan)
+            original_bytes = path.read_bytes()
+            with patch.object(deploy, "discover") as discover, patch.object(deploy, "gcloud", return_value=[]):
+                deploy.main(["evidence", "--project", "unit-test-project", "--out", temp])
+                discover.assert_not_called()
+            self.assertEqual(path.read_bytes(), original_bytes)
+
     def test_canary_is_internal_bounded_and_without_service_token(self):
         deployment, service, job = network_canary.manifest("observability", "unit-test-image", 4444)
         self.assertEqual(service["spec"]["type"], "ClusterIP")

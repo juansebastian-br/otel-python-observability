@@ -320,9 +320,19 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if not 1 <= args.unexpected_port <= 65535 or args.flow_records_threshold < 1 or args.auth_failures_threshold < 0:
         parser.error("Invalid port or threshold.")
-    config = discover(args)
-    plan = build(config)
-    save(args.out / "plan.json", plan)
+    if args.action == "evidence":
+        plan_path = args.out / "plan.json"
+        if not plan_path.exists():
+            parser.error("evidence requires an existing plan.json; run plan/apply first")
+        plan = json.loads(plan_path.read_text(encoding="utf-8"))
+        config = plan["config"]
+        if args.project != config["project"]:
+            parser.error("evidence project differs from the persisted plan")
+        # Evidence is read-only and must preserve the approved channel configuration.
+    else:
+        config = discover(args)
+        plan = build(config)
+        save(args.out / "plan.json", plan)
     print(json.dumps({key: config[key] for key in ("project", "parent", "cluster", "location", "network", "subnet", "autopilot", "intranode_visibility")}, indent=2))
     if not config["intranode_visibility"] and not config["autopilot"]:
         print("WARNING: no confirmed intranode visibility; same-node traffic may be absent. No cluster change is made.")

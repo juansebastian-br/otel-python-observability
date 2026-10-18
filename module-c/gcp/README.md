@@ -132,6 +132,14 @@ Ambas usan recurso Monitoring `global` con `project_id`. La publicación repetid
 
 ## 6. Evidencia y aceptación
 
+Capturar configuración y señales reales de la última hora sin modificar el plan ni sus canales aprobados:
+
+```bash
+python3 module-c/gcp/verify_live.py
+```
+
+Guarda la configuración actual de la subred, las seis métricas y hasta 100 logs por señal, series de Monitoring, políticas, asociación y estado de canales, CVEs y dashboard. `summary.json` distingue **configurado** de **observado**, indica resultados truncados o errores parciales y deja MTTD/entrega de notificaciones sin verificar; no inventa esos resultados. El resumen más reciente queda en `.state/verification-latest.json`. Los archivos completos se conservan en `.state/live-verification-UTC/`.
+
 Conservar `.state/plan.json`, `.state/applied.json`, `subnet-before.json` y los JSON de `evidence` en un archivo privado de la entrega. Revisar antes de publicar: los IP/IDs/logs son información operacional. Un JSON vacío significa **sin registros observados**, no una comprobación aprobada.
 
 | Criterio | Evidencia necesaria |
