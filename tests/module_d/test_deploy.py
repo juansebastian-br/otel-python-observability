@@ -76,6 +76,9 @@ class DeployTests(unittest.TestCase):
         objects = {(x["kind"], x["metadata"]["name"]): x for x in manifest["items"]}
         self.assertNotIn("Secret", {x["kind"] for x in manifest["items"]})
         self.assertTrue(all(x["metadata"]["namespace"] == deploy.NS for x in manifest["items"]))
+        for item in manifest["items"]:
+            if item["kind"] == "Service":
+                self.assertEqual(json.loads(item["metadata"]["annotations"]["cloud.google.com/neg"]), {"ingress": False})
         for role, port in (("payments", 8001), ("data", 8002)):
             pod = objects["Deployment", "module-d-" + role]["spec"]["template"]["spec"]
             container = pod["containers"][0]

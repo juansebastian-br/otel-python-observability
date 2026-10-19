@@ -67,6 +67,9 @@ def capture(args):
                 remaining = deadline - time.monotonic()
                 if remaining > 0:
                     time.sleep(min(args.poll_seconds, remaining))
+    except BaseException:
+        stop_reason = "capture_failed_or_interrupted"
+        raise
     finally:
         end = utc()
         save("observation.json", {"started_at": start, "ended_at": end, "planned_seconds": args.seconds,

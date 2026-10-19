@@ -26,6 +26,7 @@ La salida `APPLIED_READINESS_NOT_YET_VERIFIED` confirma la aplicación de manifi
 - Imágenes de negocio tomadas de pods listos con propiedad Deployment → ReplicaSet → Pod y digest único; se excluye únicamente `istio-proxy`. El overlay reutiliza sus dependencias y código real. La adaptación de data-service a una conexión GCP exige cuatro patrones exactos; cualquier diferencia detiene el despliegue.
 - PostgreSQL 16 Alpine efímero, base `module_d` inicializada con `db-init.sql`. No se conecta a Cloud SQL/RDS ni se copian credenciales originales. La nueva contraseña aleatoria va a Kubernetes exclusivamente por stdin. Reaplicar reutiliza el Secret existente sin leer su contenido ni rotarlo.
 - UID no root, `fsGroup`, sin token de cuenta de servicio, sin capacidades añadidas, sin volúmenes host ni exposición pública. Istio queda deshabilitado solo en las copias.
+- Services internos incluyen `cloud.google.com/neg: '{"ingress":false}'` para excluir NEGs de Ingress. Si el controlador de Cloud Service Mesh del clúster crea NEGs adicionales, revisar su reconciliación; esta anotación no cambia la configuración compartida de la malla ni amplía cuotas.
 - NetworkPolicy deniega ingreso/egreso por defecto y permite comunicación dentro del sandbox. DNS permite únicamente TCP/UDP53 a kube-dns y las dos IP locales de DNS documentadas por GKE. No se permite HTTP al servidor de metadata ni salida hacia recursos compartidos.
 - Aplicaciones: `module-d-payments:8001`, `module-d-data:8002`; control local `/var/run/chaos/control.json`, sin endpoint administrativo. La ausencia del archivo mantiene el caos desactivado.
 - Collector contrib0.161.0 recibe los tres pilares; exporta trazas a `module-d-jaeger:4317` y logs/métricas al exportador debug básico. Las alertas rápidas usan métricas HTTP del wrapper y Prometheus, no se afirma una integración de Cloud Monitoring para estas reglas.
@@ -33,6 +34,22 @@ La salida `APPLIED_READINESS_NOT_YET_VERIFIED` confirma la aplicación de manifi
 - Fuente/configuración se identifica mediante checksum en cada Pod para reiniciar procesos afectados al reaplicar cambios. Cambios al esquema reinician la base efímera y exigen una nueva línea base.
 
 `originals-before.json` y `originals-after.json` contienen identidades y hashes de definiciones de Deployments, Services, ConfigMaps y NetworkPolicies originales; nunca Secrets. Una diferencia hace fallar el proceso para revisión. Los manifiestos y fuentes deben permanecer privados en `.state/`; un `.gitignore` interno evita añadirlos al repositorio accidentalmente.
+
+## Apagado después de exportar evidencia
+
+`stop.py` no elimina recursos: desactiva el control de caos en los pods de negocio listos y escala a cero los ocho Deployments propios. Primero valida el contexto, el namespace, el inventario completo y la propiedad de Deployments, ReplicaSets, Pods y recursos auxiliares. Un recurso ajeno detiene el proceso antes de cualquier escritura. Se exceptúa únicamente `kube-root-ca.crt`, ConfigMap creado automáticamente por Kubernetes.
+
+**Exportar antes las trazas, métricas, logs, respuestas y recibos.** Al terminar los pods se pierde el contenido efímero de PostgreSQL, Jaeger, Prometheus, Alertmanager y receptor. Permanecen ConfigMaps, Secret, Services, NetworkPolicies y manifiestos para reproducir el laboratorio; una nueva ejecución requiere otra línea base.
+
+```sh
+python module-d/gcp/stop.py --project crafty-dynamics-239114 \
+  --out .state/module-d/stop-plan
+python module-d/gcp/stop.py --project crafty-dynamics-239114 \
+  --out .state/module-d/stop-receipt --apply
+kubectl -n observability-chaos-d get deployments,pods
+```
+
+Cada directorio debe ser nuevo para conservar el recibo anterior. El estado `SCALED_ZERO_POD_TERMINATION_NOT_YET_VERIFIED` confirma cero réplicas deseadas; el comando final permite comprobar que los pods terminaron. No se espera su terminación ni se fuerza el borrado. Cualquier fallo parcial queda registrado con las acciones aceptadas; revisar antes de repetir con otro directorio.
 
 ## Fuentes primarias
 

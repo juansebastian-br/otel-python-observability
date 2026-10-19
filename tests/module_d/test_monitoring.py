@@ -1,8 +1,11 @@
 import argparse
 import copy
 import importlib.util
+import json
 from pathlib import Path
+import tempfile
 import unittest
+from unittest.mock import patch
 
 BASE = Path(__file__).resolve().parents[2] / "module-d" / "monitoring"
 
@@ -88,6 +91,24 @@ class MonitoringTests(unittest.TestCase):
         for url in ("https://cloud.example/", "http://user:pass@localhost:8080", "http://localhost:8080/path", "http://localhost:8080?token=test"):
             with self.assertRaises(argparse.ArgumentTypeError):
                 capture.local_url(url)
+
+    def test_stop_file_preserves_final_evidence_without_waiting_for_duration(self):
+        temporary_root = BASE.parents[1] / ".state" / "test-tmp"
+        temporary_root.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=temporary_root) as temporary:
+            folder = Path(temporary)
+            stop = folder / "stop"
+            stop.write_text("complete", encoding="utf-8")
+            args = argparse.Namespace(out=folder / "capture", seconds=120, poll_seconds=2,
+                stop_file=stop, prometheus="http://127.0.0.1:19090", alertmanager="http://127.0.0.1:19093",
+                receiver="http://127.0.0.1:18080")
+            with patch.object(capture, "fetch", return_value={"events": []}), patch("builtins.print"):
+                capture.capture(args)
+            observation = json.loads((args.out / "observation.json").read_text(encoding="utf-8"))
+            self.assertEqual(observation["stop_reason"], "stop_file_observed")
+            self.assertIsNone(observation["mttd_seconds"])
+            self.assertTrue((args.out / "receiver-final.json").exists())
+            self.assertTrue((args.out / "rules-final.json").exists())
 
 
 if __name__ == "__main__":

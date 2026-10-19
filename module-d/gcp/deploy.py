@@ -179,6 +179,7 @@ def workload(name, image, ports, *, env=None, command=None, args=None, mounts=No
     svc = {"apiVersion": "v1", "kind": "Service", "metadata": metadata(name), "spec": {
         "type": "ClusterIP", "selector": {"app": name},
         "ports": [{"name": n, "port": p, "targetPort": p} for n, p in ports]}}
+    svc["metadata"]["annotations"] = {"cloud.google.com/neg": '{"ingress":false}'}
     return [deployment, svc]
 
 
