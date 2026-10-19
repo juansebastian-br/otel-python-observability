@@ -1,5 +1,13 @@
 # Python OpenTelemetry Observability Lab
 
+## Módulo D en GCP
+
+- [Caos controlado: alcance, señales y criterios de medición](module-d/README.md).
+- [Despliegue del sandbox independiente](module-d/gcp/README.md).
+- [Alertas y captura de evidencia](module-d/monitoring/README.md).
+
+Las fallas se limitan a `observability-chaos-d`: 200 ms en payments/service-b y 10 % de probabilidad de error en data-service. El contrato de medición distingue configuración, ejecución y resultados observados.
+
 ## Módulo C en GCP
 
 - [Configuración de VPC Flow Logs, alertas y Golden Signals de Seguridad](module-c/gcp/README.md).
