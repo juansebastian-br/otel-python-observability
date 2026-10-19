@@ -2,3 +2,5 @@ __pycache__/
 *.pyc
 .venv/
 benchmark/results/
+.state/
+module-d-private/
