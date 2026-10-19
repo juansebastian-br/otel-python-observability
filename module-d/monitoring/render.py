@@ -106,7 +106,6 @@ def build(config):
                 "volumeMounts": [{"name": "config", "mountPath": mount, "readOnly": True}]}]
         service = {"apiVersion": "v1", "kind": "Service", "metadata": metadata(name),
             "spec": {"type": "ClusterIP", "selector": {"app": name}, "ports": [{"name": "http", "port": port, "targetPort": port}]}}
-        service["metadata"]["annotations"] = {"cloud.google.com/neg": '{"ingress":false}'}
         return [deployment, service]
     objects = [cm("module-d-prometheus", {"prometheus.yaml": json.dumps(prom), "rules.yaml": json.dumps(rules)}),
         cm("module-d-alertmanager", {"alertmanager.yaml": json.dumps(am)}),
