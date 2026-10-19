@@ -78,6 +78,29 @@ class StopTests(unittest.TestCase):
             stop.execute(ChangedIdentity(), controls, receipt, lambda: None)
         self.assertEqual(receipt["status"], "STOP_STARTED_NOT_COMPLETED")
 
+    def test_allows_only_terminal_owned_worker_jobs_and_rejects_active_worker_before_mutation(self):
+        source = inventory()
+        identifier = "d-error-" + "a" * 32
+        labels = {**stop.deploy.LABELS, "module-d-component": "load-generator", "module-d-experiment": identifier}
+        job = {"metadata": {"name": identifier, "namespace": stop.NS, "uid": "worker-job", "labels": labels},
+               "status": {"conditions": [{"type": "Complete", "status": "True"}], "succeeded": 1}}
+        pod = {"metadata": {"name": identifier + "-abcde", "namespace": stop.NS, "uid": "worker-pod", "labels": labels,
+                "ownerReferences": [{"kind": "Job", "uid": "worker-job"}]}, "status": {"phase": "Succeeded"}}
+        source[3].append(pod)
+        self.assertEqual(len(stop.check_inventory(*source, jobs=[job])), 2)
+        for change in ("active", "unowned", "pod_running", "unknown_job"):
+            changed_job, changed_source = copy.deepcopy(job), copy.deepcopy(source)
+            if change == "active":
+                changed_job["status"] = {"active": 1}
+            elif change == "unowned":
+                changed_job["metadata"]["labels"]["managed-by"] = "foreign"
+            elif change == "pod_running":
+                changed_source[3][-1]["status"]["phase"] = "Running"
+            else:
+                changed_job["metadata"]["name"] = "unrelated-job"
+            with self.assertRaises(ValueError):
+                stop.check_inventory(*changed_source, jobs=[changed_job])
+
 
 if __name__ == "__main__":
     unittest.main()

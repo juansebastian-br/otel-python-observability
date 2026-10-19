@@ -11,15 +11,44 @@ Después de aplicar y revisar `module-d/gcp/deploy.py`, desde la raíz del repos
 
 ```bash
 python module-d/experiment/session.py --project "$GOOGLE_CLOUD_PROJECT" \
-  --mode latency --out .state/d-latency-final
+  --mode latency --load-origin in-cluster --out .state/d-latency-in-cluster
 python module-d/experiment/session.py --project "$GOOGLE_CLOUD_PROJECT" \
-  --mode error --out .state/d-error-final
+  --mode error --load-origin in-cluster --out .state/d-error-in-cluster
 ```
 
 El proyecto debe coincidir con `gcloud config get-value project` y el contexto GKE
 declarado (`--location us-central1 --cluster otel-lab`, ajustables antes de empezar).
 Cada directorio debe ser nuevo. Primero revise el resultado de latencia; no lance
 la segunda sesión si hay fallos de aislamiento, rollback o medición sin resolver.
+
+`--load-origin in-cluster` ejecuta el generador en un Job dedicado del namespace,
+usando la imagen Python ya aprobada por digest y Service ClusterIP. No comparte
+el proceso ni los recursos del pod medido. El worker carece de token Kubernetes,
+credenciales cloud y permisos RBAC; solamente el controlador de Cloud Shell puede
+activar el control. Los límites, las conexiones HTTP nuevas por petición, las
+ventanas y el umbral se mantienen iguales. `--load-origin port-forward` conserva
+la medición anterior desde Cloud Shell y sigue disponible de forma explícita.
+
+La medición del cliente dentro del clúster incluye conexión TCP, red interna y
+respuesta. El modo port-forward añade el trayecto y los streams del túnel de
+administración. Son alcances distintos: no combinar sus muestras ni descartar
+la ejecución anterior para aparentar un baseline sano. Una repetición debe tener
+nuevo directorio/ID, contrato y baseline completo.
+
+El worker escribe un JSONL único en `emptyDir`. En cada transición espera una
+autorización atómica con su ID y fase exactos; no ofrece solicitudes durante esa
+espera. Antes de liberar caos, worker y controlador verifican el baseline. El
+controlador activa el TTL y luego libera la carga; al terminar caos apaga el
+control antes de liberar recuperación. Esperas y diferencia entre activación e
+inicio de carga quedan registradas. El Job tiene deadline de 2400 s incluyendo
+arranque; el controlador admite hasta 300 s para readiness y un límite adicional
+de 1650 s para carga/transiciones. El monitor empieza después del arranque y del
+preflight, por lo que ese tiempo no consume la ventana de observación formal.
+
+Después de copiar la evidencia, se eliminan únicamente Job/ConfigMaps de ese ID
+con propiedad y UID verificados. Si la copia falla, los recursos se conservan para
+rescate y se declara el problema; el Job conserva su deadline y TTL de limpieza
+de 3600 s tras finalizar. Un Job previo no completado bloquea una nueva ejecución.
 
 Cada sesión ofrece 5 solicitudes/s, con máximo 20 solicitudes simultáneas: 900 s
 de baseline (4500 solicitudes), 180 s de caos (900) y 300 s de recuperación (1500).

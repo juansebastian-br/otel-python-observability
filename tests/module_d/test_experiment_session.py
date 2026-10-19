@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
+from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "module-d"))
 from experiment import session
@@ -48,6 +49,79 @@ def alert(**changes):
 
 
 class SessionTests(unittest.TestCase):
+    def worker(self, out):
+        worker = object.__new__(session.InClusterWorker)
+        worker.experiment_id = "d-latency-" + "a" * 32
+        worker.out = Path(out)
+        worker.pod = {"pod": "worker-pod", "pod_uid": "worker-uid", "container": "module-d-worker"}
+        worker.created, worker.evidence_copied = [], False
+        return worker
+
+    def test_worker_releases_phases_once_in_order_after_controller_checks(self):
+        with tempfile.TemporaryDirectory() as temp:
+            worker = self.worker(temp)
+            worker.read_state = Mock(side_effect=[{"state": "waiting", "phase": "baseline"},
+                {"state": "waiting", "phase": "baseline"}, {"state": "waiting", "phase": "chaos"},
+                {"state": "waiting", "phase": "recovery"}, {"state": "finished"}])
+            worker.signal = Mock()
+            worker.copy_events = Mock(side_effect=lambda stream, **kw: setattr(stream, "records", [{"record_type": "run_end", "completed": True}]))
+            transition = Mock(return_value={"checked": True})
+            with patch.object(session.time, "sleep"), redirect_stdout(io.StringIO()):
+                result = worker.run(transition, SimpleNamespace(records=[]))
+            self.assertTrue(result["completed"])
+            self.assertEqual([c.args[0] for c in transition.call_args_list], ["baseline", "chaos", "recovery"])
+            self.assertEqual([c.args[0] for c in worker.signal.call_args_list], ["baseline", "chaos", "recovery"])
+
+    def test_worker_rejects_out_of_order_phase_without_release(self):
+        with tempfile.TemporaryDirectory() as temp:
+            worker = self.worker(temp)
+            worker.read_state = Mock(return_value={"state": "waiting", "phase": "chaos"})
+            worker.signal = Mock()
+            with redirect_stdout(io.StringIO()), self.assertRaises(ValueError):
+                worker.run(Mock(), SimpleNamespace(records=[]))
+            worker.signal.assert_not_called()
+
+    def test_worker_rejected_baseline_does_not_release_chaos(self):
+        with tempfile.TemporaryDirectory() as temp:
+            worker = self.worker(temp)
+            worker.read_state = Mock(side_effect=[{"state": "waiting", "phase": "baseline"}, {"state": "waiting", "phase": "chaos"}])
+            worker.signal = Mock()
+            worker.copy_events = Mock()
+            transition = Mock(side_effect=[{}, session.runner.PhaseTransitionError("baseline")])
+            with patch.object(session.time, "sleep"), redirect_stdout(io.StringIO()), self.assertRaises(session.runner.PhaseTransitionError):
+                worker.run(transition, SimpleNamespace(records=[]))
+            self.assertEqual([c.args[0] for c in worker.signal.call_args_list], ["baseline"])
+
+    def test_worker_evidence_checkpoint_preserves_final_completeness(self):
+        with tempfile.TemporaryDirectory() as temp:
+            worker = self.worker(temp)
+            record = {"experiment_id": worker.experiment_id, "record_type": "run_start"}
+            worker.call = Mock(return_value=json.dumps(record) + "\n" + '{"partial":')
+            stream = SimpleNamespace(records=[])
+            worker.copy_events(stream)
+            self.assertEqual(stream.records, [record])
+            self.assertFalse(worker.evidence_copied)
+            with self.assertRaises(ValueError):
+                worker.copy_events(stream, final=True)
+            worker.call.return_value = json.dumps(record) + "\n"
+            worker.copy_events(stream, final=True)
+            self.assertTrue(worker.evidence_copied)
+
+    def test_worker_cleanup_preserves_unexported_evidence_and_rejects_changed_uid(self):
+        with tempfile.TemporaryDirectory() as temp:
+            worker = self.worker(temp)
+            worker.client = Mock()
+            self.assertTrue(worker.cleanup()["preserved_for_recovery"])
+            worker.client.call.assert_not_called()
+            worker.evidence_copied = True
+            worker.signal = Mock()
+            worker.created = [{"kind": "job", "name": worker.experiment_id, "uid": "expected"}]
+            worker.client.call.return_value = json.dumps({"metadata": {"name": worker.experiment_id,
+                "namespace": session.NS, "labels": dict(session.LABELS), "uid": "changed"}})
+            with self.assertRaises(ValueError):
+                worker.cleanup()
+            self.assertTrue(all(c.args[0][0] != "delete" for c in worker.client.call.call_args_list))
+
     def test_owned_ready_pod_requires_uid_chain_and_no_rollout(self):
         fixture = resource_fixture()
         selected = session.select_pod(*fixture)
@@ -177,6 +251,16 @@ class SessionTests(unittest.TestCase):
             self.assertTrue(all(call.args[1] is False for call in client.control.call_args_list))
             forwards.close.assert_called_once()
             self.assertTrue(json.loads((out / "session.json").read_text())["rollback_confirmed"])
+
+    def test_existing_active_worker_blocks_before_any_control_write(self):
+        with tempfile.TemporaryDirectory() as temp, patch.object(session, "REPO", Path(temp)):
+            client = Mock()
+            client.require_no_active_workers.side_effect = ValueError("another worker is active")
+            with patch.object(session, "Kubernetes", return_value=client), redirect_stdout(io.StringIO()):
+                code = session.main(["--project", "right-project", "--mode", "error",
+                                     "--load-origin", "in-cluster", "--out", str(Path(temp) / ".state" / "new")])
+            self.assertEqual(code, 2)
+            client.control.assert_not_called()
 
 
 if __name__ == "__main__":

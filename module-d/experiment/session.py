@@ -13,6 +13,7 @@ import sys
 import time
 from urllib.parse import urlencode
 import uuid
+from types import SimpleNamespace
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -131,6 +132,22 @@ class Kubernetes:
             raise ValueError("control acknowledgement has an invalid TTL")
         return result
 
+    def worker_image(self, selected):
+        if selected["deployment"] != "module-d-payments" or self.pod("module-d-payments") != selected:
+            raise ValueError("approved Python image source changed")
+        deployment = json.loads(self.call(["get", "deployment", "module-d-payments", "-o", "json"]))
+        image = deployment["spec"]["template"]["spec"]["containers"][0]["image"]
+        if not re.fullmatch(r"[^\s]+@sha256:[0-9a-f]{64}", image):
+            raise ValueError("load worker requires the already approved immutable app image")
+        return image
+
+    def require_no_active_workers(self):
+        jobs = json.loads(self.call(["get", "jobs", "-l", "module-d-component=load-generator", "-o", "json"]))
+        for job in jobs.get("items", []):
+            owned(job["metadata"])
+            if not any(c.get("type") == "Complete" and c.get("status") == "True" for c in job.get("status", {}).get("conditions", [])):
+                raise ValueError("another non-completed load worker exists; inspect it before a new experiment")
+
 
 def control_script(enabled, experiment_id, mode):
     if not runner.SAFE_ID.fullmatch(experiment_id) or mode not in ("latency", "error"):
@@ -236,6 +253,172 @@ def stop_process(proc):
     except subprocess.TimeoutExpired:
         proc.kill()
         proc.wait(timeout=5)
+
+
+class InClusterWorker:
+    """No Kubernetes credentials enter the worker; only this controller calls APIs."""
+    def __init__(self, client, experiment_id, mode, image, out):
+        from experiment import worker_resource
+        self.resources = worker_resource
+        self.client, self.experiment_id, self.mode, self.out = client, experiment_id, mode, out
+        self.pod = None
+        self.created, self.evidence_copied = [], False
+        role, route, method, port = (("payments", "/payments", "POST", 8001) if mode == "latency"
+                                     else ("data", "/data/health", "GET", 8002))
+        host = f"module-d-{role}.{NS}.svc"
+        config = {"experiment_id": experiment_id, "mode": mode, "target_url": f"http://{host}:{port}",
+                  "path": route, "method": method,
+                  "body": {"order_id": str(uuid.uuid4()), "amount": 100, "currency": "COP"} if role == "payments" else {}}
+        sources = {name: (ROOT / "experiment" / name).read_text(encoding="utf-8")
+                   for name in ("__init__.py", "runner.py", "analyze.py", "worker.py")}
+        self.manifest = worker_resource.build_worker_manifest(experiment_id, image, sources, config)
+
+    def create(self):
+        self.client.require_no_active_workers()
+        save(self.out / "worker-manifest.json", self.manifest)
+        for item in self.manifest["items"]:
+            owned(item["metadata"])
+            kind, name = item["kind"].lower(), item["metadata"]["name"]
+            prior = self.client.call(["get", kind, name, "--ignore-not-found", "-o", "json"])
+            if prior.strip():
+                raise ValueError("refusing to adopt a pre-existing worker resource")
+            value = json.loads(self.client.call(["create", "-f", "-", "-o", "json"], payload=json.dumps(item)))
+            owned(value["metadata"], name=name)
+            self.created.append({"kind": kind, "name": name, "uid": value["metadata"]["uid"]})
+        deadline = time.monotonic() + 300
+        while time.monotonic() < deadline:
+            job = json.loads(self.client.call(["get", "job", self.experiment_id, "-o", "json"]))
+            pods = json.loads(self.client.call(["get", "pods", "-l", "job-name=" + self.experiment_id, "-o", "json"]))["items"]
+            try:
+                self.pod = self.resources.validate_ready_worker(job, pods)
+                save(self.out / "worker-identity.json", self.pod)
+                return
+            except ValueError:
+                if job.get("status", {}).get("failed"):
+                    raise RuntimeError("load worker failed before becoming ready")
+                time.sleep(2)
+        raise TimeoutError("load worker startup exceeded 300 seconds")
+
+    def call(self, script):
+        if not self.pod:
+            raise ValueError("load worker identity has not been verified")
+        actual = json.loads(self.client.call(["get", "pod", self.pod["pod"], "-o", "json"]))
+        owned(actual["metadata"], name=self.pod["pod"])
+        if actual["metadata"]["uid"] != self.pod["pod_uid"]:
+            raise ValueError("load worker pod UID changed")
+        return self.client.call(["exec", self.pod["pod"], "-c", self.pod["container"], "--", "python", "-c", script], timeout=25)
+
+    def read_state(self):
+        raw = self.call("from pathlib import Path\np=Path('/evidence/phase-state.json')\nprint(p.read_text() if p.exists() else '{}')")
+        state = json.loads(raw)
+        if state and state.get("experiment_id") != self.experiment_id:
+            raise ValueError("load worker state belongs to another experiment")
+        return state
+
+    def signal(self, phase=None, *, stop=False, collected=False):
+        if sum((phase is not None, stop, collected)) != 1 or (phase is not None and phase not in analyze.PHASES):
+            raise ValueError("invalid worker signal")
+        filename = "stop" if stop else "collected" if collected else "release-" + phase + ".json"
+        value = {"experiment_id": self.experiment_id, "phase": phase, "action": "continue"} if phase else {"experiment_id": self.experiment_id}
+        script = ("import json,os\n"
+                  f"p='/evidence/{filename}';v=json.loads({json.dumps(json.dumps(value))})\n"
+                  "t=p+'.controller.tmp'\n"
+                  "with open(t,'w',encoding='utf-8') as f:json.dump(v,f);f.flush();os.fsync(f.fileno())\n"
+                  "os.replace(t,p)\n")
+        self.call(script)
+
+    def copy_events(self, stream, *, final=False):
+        raw = self.call("from pathlib import Path\np=Path('/evidence/events.jsonl')\nprint(p.read_text() if p.exists() else '',end='')")
+        # A concurrent append may leave the last line incomplete; retain only
+        # newline-terminated rows until the final waiting/finished checkpoint.
+        lines = raw.splitlines(keepends=True)
+        complete = [line for line in lines if line.endswith("\n")]
+        if final and len(complete) != len(lines):
+            raise ValueError("final worker JSONL ends with an incomplete record")
+        records = [json.loads(line) for line in complete]
+        if any(r.get("experiment_id") != self.experiment_id for r in records):
+            raise ValueError("mixed experiment IDs in worker evidence")
+        stream.records = records
+        path = self.out / "requests.jsonl"
+        temp = path.with_suffix(".jsonl.pending")
+        temp.write_text("".join(complete), encoding="utf-8")
+        temp.replace(path)
+        if final:
+            self.evidence_copied = True
+
+    def run(self, transition, stream):
+        released, last_copy, last_state = [], 0.0, None
+        deadline = time.monotonic() + 1650
+        while time.monotonic() < deadline:
+            state = self.read_state()
+            if state != last_state:
+                save(self.out / "worker-state.json", state)
+                print(json.dumps({"event": "worker_state", "state": state}), flush=True)
+                last_state = state
+            if state.get("state") == "waiting":
+                phase = state.get("phase")
+                if phase not in released:
+                    if phase != analyze.PHASES[len(released)]:
+                        raise ValueError("out-of-order worker phase barrier")
+                    self.copy_events(stream)
+                    details = transition(phase)
+                    save(self.out / ("controller-transition-" + phase + ".json"),
+                         {"observed_at": runner.utc_now(), "phase": phase, "details": details})
+                    self.signal(phase)
+                    released.append(phase)
+            if state.get("state") == "finished":
+                self.copy_events(stream, final=True)
+                if isinstance(state.get("summary"), dict):
+                    save(self.out / "worker-summary.json", state["summary"])
+                ends = [r for r in stream.records if r.get("record_type") == "run_end"]
+                if len(ends) != 1:
+                    raise ValueError("finished worker lacks exactly one run_end")
+                return ends[0]
+            if time.monotonic() - last_copy >= 30:
+                self.copy_events(stream)
+                last_copy = time.monotonic()
+            time.sleep(2)
+        raise TimeoutError("worker session exceeded its bounded controller deadline")
+
+    def finish_evidence(self, stream, completed):
+        if not self.pod:
+            return
+        if not completed:
+            self.signal(stop=True)
+            deadline = time.monotonic() + 20
+            while time.monotonic() < deadline and self.read_state().get("state") != "finished":
+                time.sleep(.5)
+        self.copy_events(stream, final=True)
+        state = self.read_state()
+        save(self.out / "worker-state.json", state)
+        if isinstance(state.get("summary"), dict):
+            save(self.out / "worker-summary.json", state["summary"])
+
+    def cleanup(self):
+        if self.pod and not self.evidence_copied:
+            return {"preserved_for_recovery": True, "reason": "worker evidence was not copied; Job deadline/TTL remain"}
+        collection_ack = None
+        if self.pod:
+            try:
+                self.signal(collected=True)
+                collection_ack = "delivered"
+            except Exception:
+                # A terminal Pod can no longer accept exec. Exported evidence
+                # still permits exact owned-resource cleanup below.
+                collection_ack = "not_delivered"
+        outcomes = []
+        # Delete only exact names whose UID and ownership still match this run.
+        for item in reversed(self.created):
+            raw = self.client.call(["get", item["kind"], item["name"], "--ignore-not-found", "-o", "json"])
+            if not raw.strip():
+                continue
+            meta = json.loads(raw)["metadata"]
+            owned(meta, name=item["name"])
+            if meta.get("uid") != item["uid"]:
+                raise ValueError("worker cleanup refused a replaced resource")
+            self.client.call(["delete", item["kind"], item["name"], "--wait=false"])
+            outcomes.append(item["kind"] + "/" + item["name"])
+        return {"deleted_owned_resources": outcomes, "worker_collection_ack": collection_ack}
 
 
 class EvidenceStream:
@@ -404,6 +587,7 @@ def main(argv=None):
     parser.add_argument("--location", default="us-central1")
     parser.add_argument("--cluster", default="otel-lab")
     parser.add_argument("--mode", choices=("latency", "error"), required=True)
+    parser.add_argument("--load-origin", choices=("port-forward", "in-cluster"), default="port-forward")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     out = args.out.resolve()
@@ -416,6 +600,7 @@ def main(argv=None):
     client, forwards, monitor, monitor_log = None, None, None, None
     pods, rollback, issues, stream, result, control = {}, {}, [], None, None, None
     output_created = False
+    cluster_worker = None
     experiment_id = "d-" + args.mode + "-" + uuid.uuid4().hex
     started = runner.utc_now()
     try:
@@ -429,15 +614,23 @@ def main(argv=None):
             "mode": args.mode, "declared_at": started, "phase_seconds": {"baseline": 900, "chaos": 180, "recovery": 300},
             "requests_per_second": 5, "max_concurrency": 20, "availability_target": .995,
             "latency_target": .99, "latency_threshold_ms": 200, "baseline_gate": "4500 requests, no errors/misses, client p99 <200 ms",
-            "latency_scope": "client includes port-forward/network; Prometheus histogram measures app wrapper duration",
+            "load_origin": args.load_origin,
+            "latency_scope": ("dedicated in-cluster client to Service ClusterIP, including TCP connection and response" if args.load_origin == "in-cluster"
+                              else "client includes port-forward/network") + "; Prometheus histogram measures app wrapper duration",
             "ttl_seconds": 180, "transition_note": "phase transitions pause offered arrivals; pod TTL begins at activation and is never extended"})
         client = Kubernetes(args.project, args.location, args.cluster)
+        # This check precedes even the initial OFF; never interrupt another run.
+        client.require_no_active_workers()
         pods = {name: client.pod(name) for name in PORTS}
         save(out / "pods-before.json", pods)
         for name in ("module-d-payments", "module-d-data"):
             client.control(pods[name], False, experiment_id, args.mode)
         forwards = Forwards(client, pods, out)
         forwards.start()
+        if args.load_origin == "in-cluster":
+            cluster_worker = InClusterWorker(client, experiment_id, args.mode,
+                client.worker_image(pods["module-d-payments"]), out)
+            cluster_worker.create()
         wait_preflight(forwards, out)
         monitor_log = (out / "monitor.log").open("x", encoding="utf-8")
         stop_file = out / "stop-monitor"
@@ -451,33 +644,36 @@ def main(argv=None):
             time.sleep(.1)
         config = app_config(args.mode, experiment_id)
         target = "module-d-payments" if args.mode == "latency" else "module-d-data"
-        with (out / "requests.jsonl").open("x", encoding="utf-8") as output:
-            stream = EvidenceStream(output)
+        def transition(phase):
+            nonlocal control
+            try:
+                forwards.healthy()
+                if monitor.poll() is not None:
+                    raise RuntimeError("monitor stopped before the experiment")
+                verify_targets(fetch(19090, "/api/v1/targets"))
+                if phase == "chaos":
+                    baseline = baseline_check(stream.records)
+                    save(out / "baseline-gate.json", baseline)
+                    if fetch(19090, "/api/v1/alerts").get("data", {}).get("alerts"):
+                        raise ValueError("baseline has an active/pending monitoring alert")
+                    control = client.control(pods[target], True, experiment_id, args.mode)
+                    save(out / "activation.json", control)
+                    return {"control_enabled": True, "pod_issued_at": control["issued_at"], "pod_expires_at": control["expires_at"]}
+                if phase == "recovery":
+                    off = client.control(pods[target], False, experiment_id, args.mode)
+                    save(out / "deactivation.json", {"observed_at": runner.utc_now(), **off})
+                return {"control_enabled": False}
+            except Exception as exc:
+                issues.append({"stage": "phase_transition_" + phase, "error_type": type(exc).__name__})
+                raise runner.PhaseTransitionError("guarded transition failed") from exc
 
-            def transition(phase):
-                nonlocal control
-                try:
-                    forwards.healthy()
-                    if monitor.poll() is not None:
-                        raise RuntimeError("monitor stopped before the experiment")
-                    verify_targets(fetch(19090, "/api/v1/targets"))
-                    if phase == "chaos":
-                        baseline = baseline_check(stream.records)
-                        save(out / "baseline-gate.json", baseline)
-                        if fetch(19090, "/api/v1/alerts").get("data", {}).get("alerts"):
-                            raise ValueError("baseline has an active/pending monitoring alert")
-                        control = client.control(pods[target], True, experiment_id, args.mode)
-                        save(out / "activation.json", control)
-                        return {"control_enabled": True, "pod_issued_at": control["issued_at"], "pod_expires_at": control["expires_at"]}
-                    if phase == "recovery":
-                        off = client.control(pods[target], False, experiment_id, args.mode)
-                        save(out / "deactivation.json", {"observed_at": runner.utc_now(), **off})
-                    return {"control_enabled": False}
-                except Exception as exc:
-                    issues.append({"stage": "phase_transition_" + phase, "error_type": type(exc).__name__})
-                    raise runner.PhaseTransitionError("guarded transition failed") from exc
-
-            result = runner.run(config, stream, phase_hook=transition)
+        if cluster_worker:
+            stream = SimpleNamespace(records=[])
+            result = cluster_worker.run(transition, stream)
+        else:
+            with (out / "requests.jsonl").open("x", encoding="utf-8") as output:
+                stream = EvidenceStream(output)
+                result = runner.run(config, stream, phase_hook=transition)
     except (Exception, KeyboardInterrupt) as exc:
         issues.append({"stage": "session", "error_type": type(exc).__name__})
     finally:
@@ -495,6 +691,13 @@ def main(argv=None):
                 save(out / "rollback.json", {"observed_at": runner.utc_now(), "services": rollback})
             except OSError as exc:
                 issues.append({"stage": "rollback_evidence", "error_type": type(exc).__name__})
+        if cluster_worker:
+            try:
+                if stream is None:
+                    stream = SimpleNamespace(records=[])
+                cluster_worker.finish_evidence(stream, bool(result and result["completed"]))
+            except Exception as exc:
+                issues.append({"stage": "worker_evidence", "error_type": type(exc).__name__})
         if monitor:
             try:
                 (out / "stop-monitor").touch()
@@ -507,7 +710,7 @@ def main(argv=None):
                     stop_process(monitor)
                 except Exception as cleanup_exc:
                     issues.append({"stage": "monitoring_cleanup", "error_type": type(cleanup_exc).__name__})
-        if stream and client:
+        if stream and stream.records and client:
             try:
                 target = "module-d-payments" if args.mode == "latency" else "module-d-data"
                 events = collect_server_events(client, pods[target], started, out)
@@ -546,6 +749,14 @@ def main(argv=None):
                 save(out / "pods-after.json", {name: client.pod(name) for name in PORTS})
             except Exception as exc:
                 issues.append({"stage": "evidence", "error_type": type(exc).__name__})
+        if cluster_worker:
+            try:
+                cleanup = cluster_worker.cleanup()
+                save(out / "worker-cleanup.json", cleanup)
+                if cleanup.get("preserved_for_recovery"):
+                    issues.append({"stage": "worker_cleanup", "error_type": "preserved_for_evidence_recovery"})
+            except Exception as exc:
+                issues.append({"stage": "worker_cleanup", "error_type": type(exc).__name__})
         if forwards:
             try:
                 forwards.close()
