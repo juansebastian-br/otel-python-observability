@@ -1,0 +1,15 @@
+# This upload allowlist is scoped to module-c/security/cloudbuild.yaml.
+# It excludes .git, every .state directory, credentials, evidence, tests,
+# caches and all unrelated repository files by default.
+**
+!module-c/
+!module-c/security/
+!module-c/security/cloudbuild.gcloudignore
+!module-c/security/Dockerfile
+!module-c/security/cloudbuild.yaml
+!module-c/security/requirements-probe.txt
+!module-c/security/probe_app.py
+!services/
+!services/orders/
+!services/orders/app/
+!services/orders/app/security.py

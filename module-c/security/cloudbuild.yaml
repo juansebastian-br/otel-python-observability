@@ -1,0 +1,15 @@
+# _IMAGE must be supplied explicitly by gcloud builds submit.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --file
+      - module-c/security/Dockerfile
+      - --tag
+      - '${_IMAGE}'
+      - .
+images:
+  - '${_IMAGE}'
+timeout: 1200s
+options:
+  logging: CLOUD_LOGGING_ONLY

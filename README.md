@@ -1,5 +1,13 @@
 # Python OpenTelemetry Observability Lab
 
+## Módulo C en GCP
+
+- [Configuración de VPC Flow Logs, alertas y Golden Signals de Seguridad](module-c/gcp/README.md).
+- [Requisito de organización para Security Command Center](module-c/GCP_SCC.md).
+- Autenticación de sandbox y escaneo de CVEs en `module-c/security/`.
+
+El alcance de este aporte es GCP, proyecto `crafty-dynamics-239114`, clúster `otel-lab`, namespace real `observability-lab`. Los servicios desplegados difieren de esta base del repositorio; la demostración de autenticación utiliza un servicio aislado y no reemplaza las imágenes de negocio.
+
 ## Aporte de Juan José: correlación y overhead
 
 - [Guía de ejecución y resultados](README-JUAN-JOSE.md): logs en Loki/Grafana, enlaces por `trace_id` a Jaeger y benchmark k6 baseline frente a OTel.
