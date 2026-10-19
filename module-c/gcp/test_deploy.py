@@ -1,5 +1,6 @@
 """Offline safety/contract checks; no cloud calls or invented deployment evidence."""
 import copy
+import argparse
 import json
 import pathlib
 import tempfile
@@ -45,6 +46,23 @@ class ContractTests(unittest.TestCase):
         self.assertIn('dest_gke_details.pod.pod_namespace="observability"', rule)
         self.assertNotIn("src_port", rule)
         self.assertNotIn("DENY", rule)
+
+    def test_interservice_uses_destination_observation_after_service_dnat(self):
+        # SRC may describe Service translation; DEST is the observed pod-to-pod
+        # record with the receiving application's port in the live GKE canary.
+        for name in ("interservice_flow_records", "interservice_unexpected_port"):
+            rule = self.metric(name)["filter"]
+            self.assertIn('jsonPayload.reporter="DEST"', rule)
+            self.assertNotIn('jsonPayload.reporter="SRC"', rule)
+            self.assertIn('src_gke_details.cluster.cluster_name="unit-test-cluster"', rule)
+            self.assertIn('dest_gke_details.cluster.cluster_name="unit-test-cluster"', rule)
+            self.assertIn('src_gke_details.pod.pod_namespace="observability"', rule)
+            self.assertIn('dest_gke_details.pod.pod_namespace="observability"', rule)
+            self.assertIn('ip_in_net(jsonPayload.connection.src_ip,"10.4.0.0/16")', rule)
+            self.assertIn('ip_in_net(jsonPayload.connection.dest_ip,"10.4.0.0/16")', rule)
+        ew = self.metric("ew_flow_records")["filter"]
+        self.assertIn('jsonPayload.reporter="SRC"', ew)
+        self.assertNotIn('jsonPayload.reporter="DEST"', ew)
 
     def test_auth_reads_only_structured_stdout(self):
         rule = self.metric("auth_failures")["filter"]
@@ -168,6 +186,20 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(network_canary.REQUEST_COUNT * network_canary.RESPONSE_BYTES, 15728640)
         compile(server_code, "canary-server", "exec")
         compile(client_code, "canary-client", "exec")
+
+    def test_canary_metadata_drain_is_bounded_without_more_client_requests(self):
+        for value in ("0", "120", "180"):
+            self.assertEqual(network_canary.drain_seconds(value), int(value))
+        for value in ("-1", "181", "1.5", "invalid"):
+            with self.assertRaises(argparse.ArgumentTypeError):
+                network_canary.drain_seconds(value)
+        with patch.object(network_canary.time, "monotonic", side_effect=[0, 0, 30, 60, 90, 120]), \
+             patch.object(network_canary.time, "sleep") as sleep, patch("builtins.print") as output:
+            network_canary.metadata_drain(120)
+        self.assertEqual([call.args[0] for call in sleep.call_args_list], [30, 30, 30, 30])
+        events = [json.loads(call.args[0]) for call in output.call_args_list]
+        self.assertEqual([e["event"] for e in events], ["canary_metadata_drain_started", "canary_metadata_drain_completed"])
+        self.assertTrue(all(e["additional_client_requests"] == 0 and e["timestamp"].endswith("Z") for e in events))
 
 
 if __name__ == "__main__":

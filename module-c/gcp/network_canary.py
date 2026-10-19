@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Bounded TCP4444 canary within the existing sandbox namespace; auto-cleanup."""
 import argparse
+from datetime import datetime, timezone
 import json
 import pathlib
 import subprocess
@@ -9,6 +10,33 @@ import time
 NAME = "module-c-network-canary"
 REQUEST_COUNT = 240
 RESPONSE_BYTES = 64 * 1024
+DEFAULT_DRAIN_SECONDS = 120
+MAX_DRAIN_SECONDS = 180
+
+
+def drain_seconds(value):
+    try:
+        seconds = int(value)
+    except (TypeError, ValueError) as exc:
+        raise argparse.ArgumentTypeError("Drain duration must be an integer from 0 through 180 seconds") from exc
+    if not 0 <= seconds <= MAX_DRAIN_SECONDS:
+        raise argparse.ArgumentTypeError("Drain duration must be from 0 through 180 seconds")
+    return seconds
+
+
+def metadata_drain(seconds):
+    """Keep pod objects available for asynchronous enrichment; send no client requests."""
+    def event(name):
+        print(json.dumps({"event": name, "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                          "drain_seconds": seconds, "additional_client_requests": 0}), flush=True)
+    event("canary_metadata_drain_started")
+    deadline = time.monotonic() + seconds
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        time.sleep(min(30, remaining))
+    event("canary_metadata_drain_completed")
 
 
 def kubectl(namespace, *args, body=None):
@@ -69,13 +97,16 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--plan", type=pathlib.Path, default=pathlib.Path(__file__).with_name(".state") / "plan.json")
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--drain-seconds", type=drain_seconds, default=DEFAULT_DRAIN_SECONDS,
+                        help="Retain pod metadata after requests finish, without further client traffic (0..180; default 120)")
     args = parser.parse_args()
     config = json.loads(args.plan.read_text(encoding="utf-8"))["config"]
     namespace = config["namespace"]
     if not args.apply:
         print(f"Plan: create {NAME} Deployment/ClusterIP/Job in {config['project']}/{config['cluster']}/{namespace}; "
               f"{REQUEST_COUNT} TCP requests to port {config['unexpected_port']}, {RESPONSE_BYTES} response bytes each "
-              f"({REQUEST_COUNT * RESPONSE_BYTES} total payload bytes), then delete only these resources. Add --apply to run.")
+              f"({REQUEST_COUNT * RESPONSE_BYTES} total payload bytes), retain resources {args.drain_seconds}s for metadata enrichment "
+              "without additional client requests, then delete only these resources. Add --apply to run.")
         return
     subprocess.run(["gcloud", "container", "clusters", "get-credentials", config["cluster"], "--location", config["location"],
                     "--project", config["project"]], check=True)
@@ -102,6 +133,7 @@ def main():
         print(json.dumps({"provisioning_start_unix": started, "job_started_at": job_result.get("status", {}).get("startTime"),
                          "end_unix": time.time(), "requests": REQUEST_COUNT, "expected_payload_bytes": REQUEST_COUNT * RESPONSE_BYTES,
                          "note": "Traffic generated. Verify actual Flow Logs and incident separately."}))
+        metadata_drain(args.drain_seconds)
     finally:
         for kind in reversed(created):
             try:

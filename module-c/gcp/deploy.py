@@ -199,7 +199,11 @@ def build(config):
     ew = flow + f' AND jsonPayload.reporter="SRC" AND {in_src} AND {in_dst}'
     ns_egress = flow + f' AND jsonPayload.reporter="SRC" AND {in_src} AND NOT {in_dst}'
     ns_ingress = flow + f' AND jsonPayload.reporter="DEST" AND NOT {in_src} AND {in_dst}'
-    interservice = ew + f" AND {source_cluster} AND {dest_cluster} AND {src_ns} AND {dst_ns}"
+    # GKE Service DNAT can hide the destination pod/port on the source reporter.
+    # Live canary records preserve both pod identities and logical port at DEST.
+    # Use exactly that reporter for interservice rules; general E-W remains SRC.
+    interservice = (flow + f' AND jsonPayload.reporter="DEST" AND {in_src} AND {in_dst}'
+                    + f" AND {source_cluster} AND {dest_cluster} AND {src_ns} AND {dst_ns}")
     suspicious = interservice + f' AND jsonPayload.connection.protocol=6 AND jsonPayload.connection.dest_port={config["unexpected_port"]}'
     auth = (f'resource.type="k8s_container" AND resource.labels.project_id={q(project)} '
             f'AND resource.labels.cluster_name={q(cluster)} AND resource.labels.namespace_name={q(namespace)} '
@@ -209,8 +213,8 @@ def build(config):
         counter("ew_flow_records", scope + "Sampled E-W flow records within configured VPC CIDRs (not bytes).", ew),
         counter("ns_egress_flow_records", scope + "Sampled N-S egress flow records crossing configured VPC CIDRs.", ns_egress),
         counter("ns_ingress_flow_records", scope + "Sampled N-S ingress flow records crossing configured VPC CIDRs.", ns_ingress),
-        counter("interservice_flow_records", scope + "Sampled flows between pods in this lab namespace.", interservice),
-        counter("interservice_unexpected_port", scope + "Observed TCP traffic to the lab's explicitly unexpected port.", suspicious)]
+        counter("interservice_flow_records", scope + "Destination-observed sampled flows between pods in this lab namespace.", interservice),
+        counter("interservice_unexpected_port", scope + "Destination-observed TCP traffic to the lab's explicitly unexpected port.", suspicious)]
     descriptors = [
         {"type": ACTIVE_CVES, "displayName": "Active CVEs - successful full scan", "metricKind": "GAUGE",
          "valueType": "INT64", "unit": "1", "labels": [{"key": "severity", "valueType": "STRING"}],
@@ -222,7 +226,7 @@ def build(config):
           config["auth_failures_threshold"], "Revisar eventos authentication_failed en " + logs_url +
           ". Usar trace_id y service_name del JSON para correlacionar. No copiar credenciales. Umbral: intentos por ventana de 60 s.", config["channels"]),
         threshold_policy("unexpected_port", "Modulo C - puerto inesperado entre servicios", "interservice_unexpected_port", network_resource, 0,
-          f"Puerto TCP {config['unexpected_port']} observado entre pods de {cluster}/{namespace}. Revisar origen/destino/horario en {logs_url}. "
+          f"Puerto TCP {config['unexpected_port']} observado desde DEST entre pods de {cluster}/{namespace}. Revisar origen/destino/horario en {logs_url}. "
           "Comparar con despliegues y autorizaciones; detener solo el generador de prueba. Este contador no significa firewall DENY.", config["channels"]),
         threshold_policy("traffic_spike", "Modulo C - pico de registros entre servicios", "interservice_flow_records", network_resource,
           config["flow_records_threshold"], "Umbral de laboratorio ajustable: registros muestreados por 60 s. Comparar con 15 min de baseline; "

@@ -58,6 +58,26 @@ Si fue necesario seleccionar clúster/ubicación al planificar, pasar las mismas
 
 La nueva configuración usa agregación de 5 segundos, metadatos completos y muestreo secundario 1.0. Esto **no elimina el muestreo primario**. Si Flow Logs ya estaban activos, conserva exactamente su configuración y avisa cuando filtros/metadatos puedan limitar la detección. La copia original queda en `.state/subnet-before.json` y no se sobreescribe en reejecuciones.
 
+### Backend Network Management verificado en este proyecto
+
+El 18 de octubre de 2026 se observaron registros reales con Network Management y TCP connection logging, incluyendo tráfico N-S y la prueba interna al puerto 4444. La configuración de Compute estaba habilitada, pero no había producido registros durante la ventana de comprobación. Por ello, la ruta elegida para este laboratorio es la configuración **`module-c-subnet-diagnostic`** sobre la misma subred `default`. Se conserva su nombre para no crear otra configuración superpuesta. El descriptor real de la métrica de diagnóstico confirmó `monitoredResourceTypes: ["global"]`: en Cloud Logging el recurso es `vpc_flow_logs_config`, y en Cloud Monitoring sus contadores corresponden a **`global`**.
+
+En una instalación nueva, ejecutar primero `plan` y `flow_diagnostic.py create`. Para reaplicar la configuración seleccionada del laboratorio:
+
+```bash
+python3 module-c/gcp/deploy.py apply \
+  --cluster otel-lab --location us-central1 --namespace observability-lab \
+  --sandbox-subnet default \
+  --flow-backend network-management \
+  --flow-config-name module-c-subnet-diagnostic \
+  --flow-metric-resource global \
+  --notification-channel projects/crafty-dynamics-239114/notificationChannels/210948554076235664
+```
+
+El canal anterior fue autorizado para esta ejecución. `apply` comprueba que la configuración Network Management existente esté habilitada, apunte exactamente a la subred descubierta y tenga propiedad comprobable mediante etiqueta o recibo de creación. No crea ni amplía esa configuración, ni modifica la configuración Compute preexistente. Si la API omitió las etiquetas, conservar el recibo real en `.state/flow-diagnostic-owned.json` o `.state/network-diagnostic-operation.json`; alternativamente pasar `--flow-creation-receipt` con su ruta. En un entorno distinto, comprobar el recurso real de Monitoring antes de elegirlo; no asumir `global` sin evidencia.
+
+Las cinco métricas de red leen **exclusivamente** `networkmanagement.googleapis.com/vpc_flows` y el nombre exacto de esa configuración. No suman registros de Compute. No existe backfill de métricas: después de cambiar los filtros, generar tráfico nuevo y esperar su ingestión. Repetir las opciones de backend al volver a planificar/aplicar; `evidence`, `verify_live.py` y la prueba leen el plan persistido.
+
 ## 3. Security Command Center Standard
 
 Consultar [Security Command Center del proyecto](https://console.cloud.google.com/security/command-center/overview?project=crafty-dynamics-239114). Si el proyecto ya hereda SCC desde una organización, verificar el nivel en **Settings → Tier details**. Si aparece la bienvenida y el proyecto cumple los requisitos, elegir **Get Standard → Activate**. No elegir una prueba Premium.
@@ -80,7 +100,9 @@ La prueba usa la imagen ya desplegada de `orders-service`; crea un Deployment, u
 
 El puerto del test y de la política proviene del mismo plan. La regla selecciona **puerto de destino**, por lo que los paquetes de respuesta dirigidos a puertos efímeros no activan por sí solos esa regla. Si se cambia `--unexpected-port`, repetir plan/apply antes del test.
 
-En Logs Explorer verificar registros `compute.googleapis.com/vpc_flows`, `reporter="SRC"`, protocolo TCP, destino 4444 y ambos namespaces. Después verificar el incidente **Modulo C - puerto inesperado entre servicios** y la entrega del canal. Los logs tienen muestreo y latencia de ingestión: el script no afirma MTTD real ni garantiza el objetivo de dos minutos del módulo D.
+Al concluir las 240 peticiones, el script conserva sus recursos durante **120 segundos** para permitir el enriquecimiento asíncrono de Flow Logs con metadatos de los pods. Esta espera no envía peticiones adicionales del cliente y no aumenta los 15 MiB de payload. Imprime `canary_metadata_drain_started` y `canary_metadata_drain_completed` con UTC; después ejecuta la limpieza. Puede ajustarse con `--drain-seconds` entre 0 y 180. En la comprobación real, eliminar inmediatamente el servidor dejó registros sin metadata del pod destino; la regla mantiene sus filtros estrictos y espera los datos completos, sin aceptar registros incompletos como evidencia entre servicios. La espera facilita la captura, pero no garantiza un plazo de ingestión.
+
+En Logs Explorer verificar registros de la fuente elegida (`networkmanagement.googleapis.com/vpc_flows` en esta ejecución), **`reporter="DEST"`**, protocolo TCP, destino 4444 y ambos namespaces. La evidencia real de la prueba conserva ambas identidades de pod y el puerto de aplicación desde el destino. El DNAT del Service de GKE puede impedir que la observación del origen reúna esos mismos campos; por eso la regla entre servicios selecciona únicamente DEST. Después verificar el incidente **Modulo C - puerto inesperado entre servicios** y la entrega del canal. Los logs tienen muestreo y latencia de ingestión: el script no afirma MTTD real ni garantiza el objetivo de dos minutos del módulo D.
 
 Para observar salida N-S normal sin enviar datos del laboratorio, realizar tres consultas HTTPS públicas desde el contenedor existente (solo biblioteca estándar de Python):
 
@@ -124,6 +146,7 @@ Ambas usan recurso Monitoring `global` con `project_id`. La publicación repetid
 - **E-W:** ambos IP pertenecen a los CIDR primarios o secundarios de la VPC descubierta; se cuenta solo el reporter SRC.
 - **N-S saliente:** origen dentro y destino fuera de esos CIDR; se cuenta SRC.
 - **N-S entrante:** origen fuera y destino dentro; se cuenta DEST.
+- **Entre servicios y puerto inesperado:** ambos IP internos y ambos pods en el clúster/namespace del laboratorio; se cuenta únicamente DEST, donde se observaron los metadatos y el puerto de aplicación tras la traducción del Service. E-W general sigue usando SRC. No sumar ambos gráficos como si fueran poblaciones disjuntas.
 - Los gráficos muestran **registros de flujo muestreados por minuto**. No son número exacto de conexiones, requests, paquetes ni bytes.
 - El alcance es la subred descubierta. Las redes conectadas por peering/on-prem no incluidas se clasifican fuera de esta frontera; explicitarlo en la sustentación. Si cambian los rangos, volver a planificar/aplicar.
 - Los gráficos de red generales no requieren metadata de pods porque SNAT puede retirarla. La regla entre servicios sí exige ambos namespaces y cluster; validar que los metadatos estén presentes.
@@ -144,7 +167,7 @@ Conservar `.state/plan.json`, `.state/applied.json`, `subnet-before.json` y los 
 
 | Criterio | Evidencia necesaria |
 |---|---|
-| Flow Logs | `logConfig.enable=true` y registros reales de la subred después de aplicar. |
+| Flow Logs | Configuración seleccionada `ENABLED` y registros reales de la subred; conservar también `logConfig.enable` de Compute como evidencia separada. |
 | Tráfico anómalo | IP/puerto/namespace/horario en registros y el incidente correspondiente. |
 | Respuesta accionable | Canal recibido, investigación en logs y eliminación del generador. |
 | Autenticación | Rechazos reales, JSON con trace_id y gráfico/alerta. |
@@ -154,19 +177,18 @@ Conservar `.state/plan.json`, `.state/applied.json`, `subnet-before.json` y los 
 
 ## Diagnóstico opcional con Network Management
 
-Si la configuración de Compute aparece activa pero no hay registros, `flow_diagnostic.py` permite reproducir una prueba adicional sobre **la misma subred**, con TCP connection logging. No cambia los filtros de métricas ni el dashboard. Se ejecuta por separado y no forma parte del `apply` principal:
+Si la configuración de Compute aparece activa pero no hay registros, `flow_diagnostic.py` permite reproducir una prueba adicional sobre **la misma subred**, con TCP connection logging. No cambia los filtros de métricas ni el dashboard. Se ejecuta por separado y no forma parte del `apply` principal. En esta ejecución se eligió conservar la configuración como backend principal mediante el procedimiento anterior; **no ejecutar cleanup mientras esté en uso**:
 
 ```bash
 python3 module-c/gcp/flow_diagnostic.py plan
 python3 module-c/gcp/flow_diagnostic.py create
 python3 module-c/gcp/network_canary.py --apply
 python3 module-c/gcp/flow_diagnostic.py capture
-python3 module-c/gcp/flow_diagnostic.py cleanup
 ```
 
 `plan` no modifica recursos; `create` habilita la API Network Management si hace falta y crea únicamente `module-c-subnet-diagnostic` apuntando a la subred del plan. Captura configuración, operación y hasta 100 registros. `cleanup` exige la subred esperada y propiedad comprobada: etiqueta `managed_by=otel-module-c` o recibo de creación exitoso cuyo nombre completo, subred, `createTime` y descripción coincidan exactamente con el recurso actual. Nunca basta el nombre. Esto admite la API observada que omite etiquetas en su respuesta. El recibo se guarda en `.state/flow-diagnostic-owned.json`; también se reconoce `.state/network-diagnostic-operation.json`, o se puede pasar `--creation-receipt` con el JSON real de la operación exitosa. No deshabilita la API ni cambia la configuración Compute original. `status` consulta la configuración y las configuraciones efectivas sin escribir en cloud.
 
-Se usa la API directamente porque la versión de `gcloud` disponible puede no exponer TCP connection logging. El enum aceptado en la ejecución real fue `CONNECTION_LOGGING_ENABLED`. Este flujo emite `networkmanagement.googleapis.com/vpc_flows` con recurso `vpc_flow_logs_config` y `resource.labels.name=module-c-subnet-diagnostic`. Las métricas principales siguen leyendo exclusivamente `compute.googleapis.com/vpc_flows`; no sumar ambos streams porque configuraciones superpuestas pueden duplicar registros. Una configuración creada no demuestra que haya datos: verificar la captura. Retener o migrar al nuevo mecanismo requiere comprobar primero sus registros reales y el recurso resultante de las series de Monitoring.
+Se usa la API directamente porque la versión de `gcloud` disponible puede no exponer TCP connection logging. El enum aceptado en la ejecución real fue `CONNECTION_LOGGING_ENABLED`. Este flujo emite `networkmanagement.googleapis.com/vpc_flows` con recurso `vpc_flow_logs_config` y `resource.labels.name=module-c-subnet-diagnostic`. El backend del plan determina cuál de las dos fuentes lee Monitoring; no sumar ambos streams porque configuraciones superpuestas pueden duplicar registros. Una configuración creada no demuestra que haya datos: verificar la captura. `python3 module-c/gcp/flow_diagnostic.py cleanup` permite retirar una configuración de diagnóstico abandonada y comprueba propiedad; se niega a borrar el backend seleccionado en el plan.
 
 ## Fuentes oficiales verificadas
 
@@ -179,3 +201,5 @@ Se usa la API directamente porque la versión de `gcloud` disponible puede no ex
 - [Dashboards API v1](https://docs.cloud.google.com/monitoring/dashboards/api-dashboard).
 - [PromQL en Cloud Monitoring](https://docs.cloud.google.com/monitoring/promql).
 - [Alertas PromQL](https://docs.cloud.google.com/monitoring/promql/create-promql-alerts).
+- [Recursos Logging y mapeo a Monitoring](https://docs.cloud.google.com/logging/docs/api/v2/resource-list).
+- [Visibilidad de nodos Autopilot](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/cluster-architecture).
