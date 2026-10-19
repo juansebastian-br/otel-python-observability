@@ -143,7 +143,8 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(phases, ["baseline", "chaos", "recovery"])
         self.assertEqual(result["attempted"], 3)
         self.assertEqual(result["arrival_missed"], 0)
-        self.assertGreaterEqual(result["transition_seconds"], 0.12)
+        # Windows timer resolution can quantize short 40 ms sleeps.
+        self.assertGreaterEqual(result["transition_seconds"], 0.09)
         self.assertEqual(sum(r["record_type"] == "phase_transition" for r in records), 3)
 
     def test_rejected_baseline_stops_before_chaos_requests(self):
